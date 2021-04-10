@@ -1,17 +1,46 @@
+import strawberry_django
 from inspect import iscoroutine
 from django.db import models
 from strawberry.field import StrawberryField
+from strawberry.arguments import StrawberryArgument, UNSET
 from asgiref.sync import sync_to_async
 from . import utils
 
 import dataclasses
-from typing import Any
+from typing import Any, List, Optional
 
 @dataclasses.dataclass
 class Result:
     value: Any = None
 
-class DjangoField(StrawberryField):
+class DjangoFilters:
+    def __init__(self, filters=None, *args, **kwargs):
+        self.filters = filters
+        super().__init__(*args, **kwargs)
+
+    @property
+    def arguments(self) -> List[StrawberryArgument]:
+        arguments = super().arguments
+        if self.filters:
+            arg = StrawberryArgument(
+                type_=self.filters,
+                python_name="filters",
+                graphql_name="filters",
+                default_value=UNSET,
+                description=None,
+                origin=None,
+            )
+            arguments += [arg]
+        return arguments
+
+    def apply_filter(self, kwargs, source, info, queryset):
+        if self.filters:
+            filters = self.filters(**kwargs.get('filters'))
+            queryset = strawberry_django.filters.apply(filters, queryset)
+        return queryset
+
+
+class DjangoField(DjangoFilters, StrawberryField):
     def __init__(self, *args, **kwargs):
         self.hooks = kwargs.pop('hooks', [])
         if isinstance(self.hooks, tuple):
@@ -66,7 +95,8 @@ class DjangoField(StrawberryField):
                 result = result.all()
 
         if isinstance(result, models.QuerySet):
-            # TODO: add filtering here!
+            result = self.apply_filter(kwargs, source, info, result)
+
             if not self.is_list:
                 result = result.get()
 
@@ -91,6 +121,18 @@ class DjangoField(StrawberryField):
     def call_hooks(self, *args, **kwargs):
         for hook in self.hooks:
             hook(*args, **kwargs)
+
+def field2(resolver=None, *, name=None, filters=None, **kwargs):
+    field_ = DjangoField(
+        python_name=None,
+        graphql_name=name,
+        type_=None,
+        filters=filters,
+        **kwargs
+    )
+    if resolver:
+        return field_(resolver)
+    return field_
 
 
 

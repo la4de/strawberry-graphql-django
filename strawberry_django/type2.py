@@ -6,23 +6,12 @@ from django.db import models
 from typing import Optional
 import django
 
-from .fields2 import DjangoField
+from .fields2 import DjangoField, field2
 
 
 class auto:
     pass
 
-
-def field2(resolver=None, *, name=None, **kwargs):
-    field_ = DjangoField(
-        python_name=None,
-        graphql_name=name,
-        type_=None,
-        **kwargs
-    )
-    if resolver:
-        return field_(resolver)
-    return field_
 
 def iter_fields(cls):
     field_names = list(cls.__annotations__.keys())
