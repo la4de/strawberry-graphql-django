@@ -51,6 +51,6 @@ def test_delete(mutation, users):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 async def test_async(schema):
-    result = await schema.execute('mutation { user: createUser(data: { name: "user1" }) { id name } }')
+    result = await schema.execute('mutation { user: createUser(data: { name: "user1" }) { name } }')
     assert not result.errors
-    assert result.data['user'] == { 'id': '1', 'name': 'user1' }
+    assert result.data['user'] == { 'name': 'user1' }

@@ -7,3 +7,4 @@ from . import filters
 from .filters import filter
 from .resolvers import django_resolver
 from .type import input, type
+from .type2 import auto, type2, field2
