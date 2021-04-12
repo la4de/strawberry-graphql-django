@@ -6,8 +6,10 @@ from django.db import models
 from typing import Optional
 import django
 
-from .fields2 import DjangoField, field2
+from .fields2 import DjangoField
+from . import utils
 
+_type = type
 
 class auto:
     pass
@@ -27,7 +29,7 @@ def iter_fields(cls):
 
 def resolve_model_field_type(model, field_name):
     model_field = model._meta.get_field(field_name)
-    model_field_type = type(model_field)
+    model_field_type = _type(model_field)
     field_type = field_type_map[model_field_type]
     return field_type
 
@@ -51,7 +53,6 @@ def process_type(cls, model, kwargs):
     for field_name, field_type, field_value in iter_fields(cls):
         if field_type is auto:
             field_type = resolve_model_field_type(model, field_name)
-            #annotations[field_name] = field_type
 
         if is_field_optional(model, field_name, is_input, partial):
             field_type = Optional[field_type]
@@ -71,7 +72,18 @@ def process_type(cls, model, kwargs):
 
     return strawberry.type(cls, **kwargs)
 
-def type2(cls_or_model, **kwargs):
+def type(cls_or_model, **kwargs):
+    if 'fields' in kwargs or 'types' in kwargs:
+        stacklevel = kwargs.get('is_input', False) and 3 or 2
+        if 'fields' in kwargs:
+            utils.deprecated("'fields' parameter has been deprecated,"
+                " please define all fields in class", stacklevel=stacklevel)
+        if 'types' in kwargs:
+            utils.deprecated("'types' parameter has been deprecated,"
+                " please define all types in class", stacklevel=stacklevel)
+        from .type import type as type_legacy
+        return type_legacy(model=cls_or_model, **kwargs)
+
     if not is_django_model(cls_or_model):
         cls = cls_or_model
         return process_type(cls, None, kwargs)
@@ -81,6 +93,9 @@ def type2(cls_or_model, **kwargs):
         return process_type(cls, model, kwargs)
 
     return wrapper
+
+def input(cls_or_model, *, partial=False, **kwargs):
+    return type(cls_or_model, partial=partial, is_input=True, **kwargs)
 
 def is_django_type(obj):
     return hasattr(obj, '_django_model')

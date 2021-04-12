@@ -12,7 +12,7 @@ class InputFieldsModel(models.Model):
 
 
 def test_input_type():
-    @strawberry_django.input(InputFieldsModel)
+    @strawberry_django.input(InputFieldsModel, fields=None)
     class InputType:
         pass
 
@@ -27,7 +27,7 @@ def test_input_type():
 
 
 def test_input_type_for_partial_update():
-    @strawberry_django.input(InputFieldsModel, partial=True)
+    @strawberry_django.input(InputFieldsModel, fields=None, partial=True)
     class InputType:
         pass
 
@@ -46,7 +46,7 @@ class InputParentModel(models.Model):
     many_to_many = models.ManyToManyField(InputFieldsModel)
 
 def test_foreign_key():
-    @strawberry_django.input(InputParentModel)
+    @strawberry_django.input(InputParentModel, fields=None)
     class InputType:
         pass
 

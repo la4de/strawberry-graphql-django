@@ -8,4 +8,7 @@ from .filters import filter
 from .filters2 import filter_field, filter as filter2
 from .resolvers import django_resolver
 from .type import input, type
-from .type2 import auto, type2, field2
+from .type2 import auto
+
+from .type2 import type, input
+from .fields2 import field

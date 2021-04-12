@@ -7,11 +7,19 @@ from .. import models, types
 def generate_query(*args, **kwargs):
     query = strawberry_django.queries(*args, **kwargs)
     schema = strawberry.Schema(query=query)
-    def query(query):
+    def process_result(result):
+        if result.errors:
+            raise result.errors[0].original_error
+        return result
+    async def query_async(query):
+        result = await schema.execute(query)
+        return process_result(result)
+    def query_sync(query):
         if strawberry_django.utils.is_async():
-            return schema.execute(query)
-        return schema.execute_sync(query)
-    return query
+            return query_async(query)
+        result = schema.execute_sync(query)
+        return process_result(result)
+    return query_sync
 
 
 def test_field_name(user):
@@ -42,7 +50,7 @@ async def test_sync_resolver(user, group):
     @strawberry_django.type(models.User, fields=[])
     class User:
         @strawberry_django.field
-        def my_group(root, info) -> types.Group:
+        def my_group(self, info) -> types.Group:
             return models.Group.objects.get()
     query = generate_query(User)
 
@@ -57,7 +65,7 @@ async def test_async_resolver(user, group):
     @strawberry_django.type(models.User, fields=[])
     class User:
         @strawberry_django.field
-        async def my_group(root, info) -> types.Group:
+        async def my_group(self, info) -> types.Group:
             from asgiref.sync import sync_to_async
             return await sync_to_async(models.Group.objects.get)()
     query = generate_query(User)

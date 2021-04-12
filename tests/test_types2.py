@@ -8,7 +8,7 @@ import pytest
 
 
 def test_field_type_auto_resolution():
-    @strawberry_django.type2(models.User)
+    @strawberry_django.type(models.User)
     class User:
         id: auto
         name = field()
@@ -21,12 +21,12 @@ def test_field_type_auto_resolution():
 
 def test_field_does_not_exist():
     with pytest.raises(django.core.exceptions.FieldDoesNotExist):
-        @strawberry_django.type2(models.User)
+        @strawberry_django.type(models.User)
         class User:
             unknown_field: auto
 
     with pytest.raises(django.core.exceptions.FieldDoesNotExist):
-        @strawberry_django.type2(models.User)
+        @strawberry_django.type(models.User)
         class User:
             unknown_field = field()
 
@@ -37,10 +37,10 @@ def test_field_type_from_resolver():
     def resolver() ->' User':
         pass
 
-    @strawberry_django.type2(models.User)
+    @strawberry_django.type(models.User)
     class User:
-        friend1 = strawberry_django.field2(resolver)
-        @strawberry_django.field2
+        friend1 = strawberry_django.field(resolver)
+        @strawberry_django.field
         def friend2() -> 'User':
             pass
 

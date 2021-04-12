@@ -12,19 +12,19 @@ def user_group(users, groups):
     users[0].group = groups[0]
     users[0].save()
 
-@strawberry_django.type2(models.User)
+@strawberry_django.type(models.User)
 class User:
     id: auto
     name: auto
     group: 'Group'
 
-@strawberry_django.type2(models.Group)
+@strawberry_django.type(models.Group)
 class Group:
     id: auto
     name: auto
     users: List[User]
 
-@strawberry_django.type2
+@strawberry_django.type
 class Query:
     user: User
     users: List[User]

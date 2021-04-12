@@ -29,7 +29,7 @@ class FieldTypesModel(models.Model):
 
 
 def test_field_types():
-    @strawberry_django.type(FieldTypesModel)
+    @strawberry_django.type(FieldTypesModel, fields=None)
     class Type:
         pass
 

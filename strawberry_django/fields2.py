@@ -1,5 +1,4 @@
 import strawberry_django
-from inspect import iscoroutine
 from django.db import models
 from strawberry.field import StrawberryField
 from strawberry.arguments import StrawberryArgument, UNSET
@@ -14,8 +13,9 @@ class Result:
     value: Any = None
 
 class DjangoFilters:
-    def __init__(self, filters=None, *args, **kwargs):
+    def __init__(self, filters=None, django_name=None, *args, **kwargs):
         self.filters = filters
+        self.django_name = django_name
         super().__init__(*args, **kwargs)
 
     @property
@@ -54,8 +54,8 @@ class DjangoField(DjangoFilters, StrawberryField):
         sync_resolver = None
 
         if self.base_resolver:
-            if not iscoroutine(self.base_resolver):
-                sync_resolver = self.base_resolver
+            if not self.base_resolver.is_async:
+                sync_resolver = super().get_result
 
         else:
             if self.is_django_type:
@@ -77,7 +77,10 @@ class DjangoField(DjangoFilters, StrawberryField):
                 self.call_hooks(root=source, info=info, result=result)
                 return result.value
 
-        result.value = super().get_result(kwargs, source, info)
+        if self.django_name:
+            result.value = getattr(source, self.django_name)
+        else:
+            result.value = super().get_result(kwargs, source, info)
         self.call_hooks(root=source, info=info, result=result)
         return result.value
 
@@ -90,7 +93,7 @@ class DjangoField(DjangoFilters, StrawberryField):
 
         else:
             # relation model field
-            result = getattr(source, self.python_name)
+            result = getattr(source, self.django_name or self.python_name)
             if isinstance(result, models.manager.Manager):
                 result = result.all()
 
@@ -122,12 +125,13 @@ class DjangoField(DjangoFilters, StrawberryField):
         for hook in self.hooks:
             hook(*args, **kwargs)
 
-def field2(resolver=None, *, name=None, filters=None, **kwargs):
+def field(resolver=None, *, name=None, filters=None, field_name=None, **kwargs):
     field_ = DjangoField(
         python_name=None,
         graphql_name=name,
         type_=None,
         filters=filters,
+        django_name=field_name,
         **kwargs
     )
     if resolver:
