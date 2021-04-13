@@ -13,6 +13,6 @@
 * [Mutations](mutations.md) (draft)
 * [Pagination](pagination.md)
 * [Queries](queries.md)
-* [Resolvers](resolvers.md)
+* [Resolvers](resolvers.md) (draft)
 * [Subscriptions](subscriptions.md)
 * [Types](types.md) (draft)
