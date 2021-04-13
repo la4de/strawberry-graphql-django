@@ -2,7 +2,12 @@
 
 ## Output types
 
-```pythons
+Output types are generated from models. `auto` type is used for field type auto resolution. Relational fields are described by referencing to other type genedated from Django model. Many to many relation is described by using List type. `strawberry_django` will automatically generate resolvers for relational fields. More information about that can be read from [resolvers](resolvers.md) page.
+
+```python
+from strawberry_django import auto
+from typing import List
+
 @strawberry_django.type(models.Fruit)
 class Fruit:
     id: auto
@@ -21,7 +26,7 @@ class Color:
 Input types can be generated from models by using `strawberry_django.input` decorator. First parameter is always model, where the type is converted from.
 
 
-```pythons
+```python
 @strawberry_django.input(models.Fruit)
 class FruitInput:
     id: auto
