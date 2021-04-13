@@ -2,8 +2,6 @@
 
 This library provides toolset for GraphQL schema generation from Django models.
 
-[Reference](docs/index.md)
-
 ## Installing the package
 
 ```
