@@ -2,6 +2,7 @@ import strawberry
 import typing
 from .types import get_model_fields, update_fields
 from .utils import deprecated
+from ..type import auto
 
 _type = type
 
@@ -17,6 +18,12 @@ def type(model, *, fields=None, types=None, **kwargs):
                 cls.__annotations__[field_name] = field_type
             if not hasattr(cls, field_name):
                 setattr(cls, field_name, field_value)
+        for field_name, field_type in cls.__annotations__.items():
+            if field_type is auto:
+                raise TypeError(f"Field '{field_name}' has invalid type."
+                    " Type 'auto' cannot be use together with"
+                    " 'fields' parameter."
+                )
         update_fields(cls, model)
         cls._django_model = model
         cls._partial = partial
