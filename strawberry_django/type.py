@@ -69,6 +69,7 @@ def process_type(cls, model, kwargs):
 
     cls.__annotations__.update(annotations)
     cls._django_model = model
+    cls._partial = partial
 
     return strawberry.type(cls, **kwargs)
 
