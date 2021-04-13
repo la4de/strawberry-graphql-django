@@ -1,6 +1,6 @@
 import strawberry
 from strawberry.arguments import is_unset, UNSET
-from django.db.models import fields
+from django.db import models
 import ast
 import asyncio
 import warnings
@@ -68,3 +68,10 @@ def is_async():
 
 def deprecated(msg, stacklevel=1):
     warnings.warn(msg, DeprecationWarning, stacklevel=stacklevel + 1)
+
+
+def is_django_type(obj):
+    return hasattr(obj, '_django_model')
+
+def is_django_model(obj):
+    return isinstance(obj, models.base.ModelBase)

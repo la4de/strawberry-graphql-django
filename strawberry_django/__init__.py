@@ -1,14 +1,11 @@
-from .fields import field, mutation
-from .mutations.fields import mutations
-from .mutations.auth import AuthMutation
-from .queries.fields import queries
-from .registers import TypeRegister
+from .legacy.fields import field, mutation
+from .legacy.mutations.fields import mutations
+from .legacy.mutations.auth import AuthMutation
+from .legacy.queries.fields import queries
+from .legacy.registers import TypeRegister
+from .legacy.resolvers import django_resolver
 from . import filters
 from .filters import filter
 from .filters2 import filter_field, filter as filter2
-from .resolvers import django_resolver
-from .type import input, type
-from .type2 import auto
-
-from .type2 import type, input
-from .fields2 import field
+from .type import auto, type, input
+from .fields import field

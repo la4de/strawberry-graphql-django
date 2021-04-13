@@ -1,5 +1,5 @@
 from django.db import models
-from strawberry_django import resolvers
+from strawberry_django.legacy import resolvers
 import strawberry_django
 import strawberry
 import pytest
