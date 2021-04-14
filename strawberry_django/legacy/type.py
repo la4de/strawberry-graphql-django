@@ -2,11 +2,18 @@ import strawberry
 import typing
 from .types import get_model_fields, update_fields
 from .utils import deprecated
-from ..type import auto
+from ..fields import auto
 
 _type = type
 
 def type(model, *, fields=None, types=None, **kwargs):
+    stacklevel = kwargs.get('is_input', False) and 4 or 3
+    if 'fields' in kwargs:
+        utils.deprecated("'fields' parameter is deprecated,"
+            " please define all fields in class", stacklevel=stacklevel)
+    if 'types' in kwargs:
+        utils.deprecated("'types' parameter is deprecated,"
+            " please define all types in class", stacklevel=stacklevel)
     def wrapper(cls):
         is_input = kwargs.get('is_input', False)
         partial = kwargs.pop('partial', False)

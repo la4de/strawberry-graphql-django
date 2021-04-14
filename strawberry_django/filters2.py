@@ -2,7 +2,7 @@ import dataclasses
 import django_filters
 import strawberry_django
 from typing import List, Optional
-from .type import auto
+from .fields import auto
 
 type_map = {
     bool: django_filters.BooleanFilter,

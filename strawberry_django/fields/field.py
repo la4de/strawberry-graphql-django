@@ -3,7 +3,7 @@ from django.db import models
 from strawberry.field import StrawberryField
 from strawberry.arguments import StrawberryArgument, UNSET
 from asgiref.sync import sync_to_async
-from . import utils
+from .. import utils
 
 import dataclasses
 from typing import Any, List, Optional

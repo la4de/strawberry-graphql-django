@@ -1,25 +1,12 @@
 import pytest
 import strawberry
 import strawberry_django
-from .. import models, types
+from .. import models, types, utils
 
 
 def generate_query(*args, **kwargs):
     query = strawberry_django.queries(*args, **kwargs)
-    schema = strawberry.Schema(query=query)
-    def process_result(result):
-        if result.errors:
-            raise result.errors[0].original_error
-        return result
-    async def query_async(query):
-        result = await schema.execute(query)
-        return process_result(result)
-    def query_sync(query):
-        if strawberry_django.utils.is_async():
-            return query_async(query)
-        result = schema.execute_sync(query)
-        return process_result(result)
-    return query_sync
+    return utils.generate_query(query)
 
 
 def test_field_name(user):

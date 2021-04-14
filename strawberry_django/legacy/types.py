@@ -1,43 +1,10 @@
-from django.db.models import fields
 from strawberry.arguments import is_unset, UNSET
-from typing import get_origin, List, Optional
-import dataclasses
-import datetime, decimal, uuid
+from typing import List, Optional
 import strawberry
 from . import utils
 from .fields import DjangoField, field as strawberry_django_field
 
-
-field_type_map = {
-    fields.AutoField: strawberry.ID,
-    fields.BigAutoField: strawberry.ID,
-    fields.BigIntegerField: int,
-    fields.BooleanField: bool,
-    fields.CharField: str,
-    fields.DateField: datetime.date,
-    fields.DateTimeField: datetime.datetime,
-    fields.DecimalField: decimal.Decimal,
-    fields.EmailField: str,
-    #TODO: fields.FieldFile
-    fields.FilePathField: str,
-    fields.FloatField: float,
-    #TODO: fields.ImageField
-    fields.GenericIPAddressField: str,
-    fields.IntegerField: int,
-    #TODO: fields.JSONField
-    fields.NullBooleanField: Optional[bool],
-    fields.PositiveBigIntegerField: int,
-    fields.PositiveIntegerField: int,
-    fields.PositiveSmallIntegerField: int,
-    fields.SlugField: str,
-    fields.SmallAutoField: strawberry.ID,
-    fields.SmallIntegerField: int,
-    fields.TextField: str,
-    fields.TimeField: datetime.time,
-    fields.URLField: str,
-    fields.UUIDField: uuid.UUID,
-}
-
+from ..fields.types import field_type_map, is_optional
 
 class LazyModelType(strawberry.LazyType):
     def __init__(self, field, type_register, is_input):
@@ -90,15 +57,6 @@ def get_field_type(field, type_register, is_input):
     # TODO: show field name
     raise TypeError(f"No type defined for '{db_field_type.__name__}'")
 
-
-def is_optional(field, is_input, partial):
-    if is_input:
-        has_default = field.default != fields.NOT_PROVIDED
-        if field.blank or partial or has_default:
-            return True
-    if field.null:
-        return True
-    return False
 
 def is_in(item, item_list, default=False):
     if not item_list:

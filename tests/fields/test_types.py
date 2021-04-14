@@ -2,7 +2,9 @@ import datetime, decimal, enum, uuid
 import pytest
 import strawberry
 import strawberry_django
+from strawberry_django import auto
 from django.db import models
+import django
 
 
 class FieldTypesModel(models.Model):
@@ -29,9 +31,29 @@ class FieldTypesModel(models.Model):
 
 
 def test_field_types():
-    @strawberry_django.type(FieldTypesModel, fields=None)
+    @strawberry_django.type(FieldTypesModel)
     class Type:
-        pass
+        id: auto
+        boolean: auto
+        char: auto
+        date: auto
+        date_time: auto
+        decimal: auto
+        email: auto
+        file_path: auto
+        float: auto
+        generic_ip_address: auto
+        integer: auto
+        null_boolean: auto
+        positive_big_integer: auto
+        positive_integer: auto
+        positive_small_integer: auto
+        slug: auto
+        small_integer: auto
+        text: auto
+        time: auto
+        url: auto
+        uuid: auto
 
     assert [(f.name, f.type) for f in Type._type_definition.fields] == [
         ('id', strawberry.ID),
@@ -59,9 +81,11 @@ def test_field_types():
 
 
 def test_subset_of_fields():
-    @strawberry_django.type(FieldTypesModel, fields=['id', 'integer', 'text'])
+    @strawberry_django.type(FieldTypesModel)
     class Type:
-        pass
+        id: auto
+        integer: auto
+        text: auto
 
     assert [(f.name, f.type) for f in Type._type_definition.fields] == [
         ('id', strawberry.ID),
@@ -71,32 +95,33 @@ def test_subset_of_fields():
 
 
 def test_type_extension():
-    @strawberry_django.type(FieldTypesModel, fields=['char'])
+    @strawberry_django.type(FieldTypesModel)
     class Type:
+        char: auto
         text: bytes # override type
         @strawberry.field
         def my_field() -> int:
             return 0
 
     assert [(f.name, f.type) for f in Type._type_definition.fields] == [
-        ('text', bytes),
         ('char', str),
+        ('text', bytes),
         ('my_field', int),
     ]
 
 
 def test_field_does_not_exist():
-    with pytest.raises(AttributeError, match="Django model 'FieldTypesModel' has no field 'unknownField'"):
-        @strawberry_django.type(FieldTypesModel, fields=['unknownField'])
+    with pytest.raises(django.core.exceptions.FieldDoesNotExist):
+        @strawberry_django.type(FieldTypesModel)
         class Type:
-            pass
+            unknown_field: auto
 
 def test_override_field_type():
     @strawberry.enum
     class EnumType(enum.Enum):
         a = 'A'
 
-    @strawberry_django.type(FieldTypesModel, fields=['char'])
+    @strawberry_django.type(FieldTypesModel)
     class Type:
         char: EnumType
 
@@ -105,7 +130,7 @@ def test_override_field_type():
     ]
 
 def test_override_field_default_value():
-    @strawberry_django.type(FieldTypesModel, fields=['char'])
+    @strawberry_django.type(FieldTypesModel)
     class Type:
         char = 'my value'
 

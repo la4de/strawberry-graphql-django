@@ -7,5 +7,5 @@ from .legacy.resolvers import django_resolver
 from . import filters
 from .filters import filter
 from .filters2 import filter_field, filter as filter2
-from .type import auto, type, input
-from .fields import field
+from .type import type, input
+from .fields import auto, field
