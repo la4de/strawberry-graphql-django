@@ -41,6 +41,10 @@ def is_auto(type_):
 
 def is_optional(field, is_input, partial):
     if is_input:
+        if isinstance(field, fields.AutoField):
+            return True
+        if field.many_to_many or field.one_to_many:
+            return True
         has_default = field.default != fields.NOT_PROVIDED
         if field.blank or partial or has_default:
             return True

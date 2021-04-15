@@ -51,7 +51,7 @@ def test_input_type_for_partial_update():
         ('null_boolean', bool, True),
     ]
 
-def test_field_input_type():
+def test_input_type():
     from .. import models
     @strawberry_django.input(models.User)
     class UserInput:
@@ -61,7 +61,7 @@ def test_field_input_type():
         ('name', str, False),
     ]
 
-def test_field_partial_input_type():
+def test_partial_input_type():
     from .. import models
     @strawberry_django.input(models.User, partial=True)
     class UserPartialInput:
@@ -72,7 +72,7 @@ def test_field_partial_input_type():
     ]
 
 
-def test_field_partial_input_type_inheritance():
+def test_partial_input_type_inheritance():
     from .. import models
     @strawberry_django.input(models.User)
     class UserInput:
@@ -84,4 +84,20 @@ def test_field_partial_input_type_inheritance():
 
     assert [(f.name, f.type, f.is_optional) for f in UserPartialInput._type_definition.fields] == [
         ('name', str, True),
+    ]
+
+def test_input_type_inheritance_from_type():
+    from .. import models
+    @strawberry_django.type(models.User)
+    class User:
+        id: auto
+        name: auto
+
+    @strawberry_django.input(models.User)
+    class UserInput(User):
+        pass
+
+    assert [(f.name, f.type, f.is_optional) for f in UserInput._type_definition.fields] == [
+        ('id', strawberry.ID, True),
+        ('name', str, False),
     ]
