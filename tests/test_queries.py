@@ -3,9 +3,7 @@ import strawberry_django
 import pytest
 from strawberry_django import auto, field
 from typing import List
-from . import models
-
-from strawberry_django import utils
+from . import models, utils
 
 @pytest.fixture
 def user_group(users, groups):
@@ -31,19 +29,9 @@ class Query:
     group: Group
     groups: List[Group]
 
-
-def generate_query(query):
-    schema = strawberry.Schema(query=query)
-    def query(query, variable_values=None):
-        if utils.is_async():
-            return schema.execute(query, variable_values=variable_values)
-        else:
-            return schema.execute_sync(query, variable_values=variable_values)
-    return query
-
 @pytest.fixture
 def query(db):
-    return generate_query(Query)
+    return utils.generate_query(Query)
 
 pytestmark = [
     pytest.mark.asyncio,

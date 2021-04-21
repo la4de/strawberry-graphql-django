@@ -1,6 +1,5 @@
 from django.db import models
 from strawberry_django import auto
-from strawberry_django.legacy import resolvers
 from typing import List
 import strawberry_django
 import strawberry

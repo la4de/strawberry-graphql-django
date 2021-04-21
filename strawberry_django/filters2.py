@@ -1,5 +1,5 @@
 import dataclasses
-import django_filters
+from .filters import django_filters
 import strawberry_django
 from typing import List, Optional
 from .fields import auto

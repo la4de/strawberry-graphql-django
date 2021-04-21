@@ -1,56 +1,58 @@
 import pytest
-import strawberry
-import strawberry_django
 from .. import models
 
-@pytest.fixture
-def users(db):
-    users = [ models.User.objects.create(name=f'user{i+1}') for i in range(3) ]
 
 def test_create(mutation):
-    result = mutation('{ user: createUser(data: { name: "user1" }) { id name } }')
+    result = mutation('{ fruit: createFruit(data: { name: "strawberry" }) { id name } }')
     assert not result.errors
-    assert result.data['user'] == { 'id': '1', 'name': 'user1' }
-    assert list(models.User.objects.values('id', 'name')) == [
-        { 'id': 1, 'name': 'user1' },
+    assert result.data['fruit'] == { 'id': '1', 'name': 'strawberry' }
+    assert list(models.Fruit.objects.values('id', 'name')) == [
+        { 'id': 1, 'name': 'strawberry' },
     ]
 
-def test_create_batch(mutation):
-    result = mutation('{ users: createUsers(data: [{ name: "user1" }, { name: "user2" }]) { id name } }')
-    assert not result.errors
-    assert result.data['users'] == [
-        { 'id': '1', 'name': 'user1' },
-        { 'id': '2', 'name': 'user2' },
-    ]
-    assert list(models.User.objects.values('id', 'name')) == [
-        { 'id': 1, 'name': 'user1' },
-        { 'id': 2, 'name': 'user2' },
-    ]
-
-def test_update(mutation, users):
-    result = mutation('{ users: updateUsers(data: { name: "me" }, filters: ["id__lte=2"]) { id name } }')
-    assert not result.errors
-    assert result.data['users'] == [
-        { 'id': '1', 'name': 'me' },
-        { 'id': '2', 'name': 'me' },
-    ]
-    assert list(models.User.objects.values('id', 'name')) == [
-        { 'id': 1, 'name': 'me' },
-        { 'id': 2, 'name': 'me' },
-        { 'id': 3, 'name': 'user3' },
-    ]
-
-def test_delete(mutation, users):
-    result = mutation('{ ids: deleteUsers(filters: ["id__gt=1"]) }')
-    assert not result.errors
-    assert result.data['ids'] == [ '2', '3' ]
-    assert list(models.User.objects.values('id', 'name')) == [
-        { 'id': 1, 'name': 'user1' },
-    ]
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
-async def test_async(schema):
-    result = await schema.execute('mutation { user: createUser(data: { name: "user1" }) { name } }')
+async def test_create_async(mutation):
+    result = await mutation('{ fruit: createFruit(data: { name: "strawberry" }) { id name } }')
     assert not result.errors
-    assert result.data['user'] == { 'name': 'user1' }
+    assert result.data['fruit'] == { 'id': '1', 'name': 'strawberry' }
+
+
+def test_create_many(mutation):
+    result = mutation('{ fruits: createFruits(data: [{ name: "strawberry" }, { name: "raspberry" }]) { id name } }')
+    assert not result.errors
+    assert result.data['fruits'] == [
+        { 'id': '1', 'name': 'strawberry' },
+        { 'id': '2', 'name': 'raspberry' },
+    ]
+    assert list(models.Fruit.objects.values('id', 'name')) == [
+        { 'id': 1, 'name': 'strawberry' },
+        { 'id': 2, 'name': 'raspberry' },
+    ]
+
+
+def test_update(mutation, fruits):
+    result = mutation('{ fruits: updateFruits(data: { name: "orange" }) { id name } }')
+    assert not result.errors
+    assert result.data['fruits'] == [
+        { 'id': '1', 'name': 'orange' },
+        { 'id': '2', 'name': 'orange' },
+        { 'id': '3', 'name': 'orange' },
+    ]
+    assert list(models.Fruit.objects.values('id', 'name')) == [
+        { 'id': 1, 'name': 'orange' },
+        { 'id': 2, 'name': 'orange' },
+        { 'id': 3, 'name': 'orange' },
+    ]
+
+
+def test_delete(mutation, fruits):
+    result = mutation('{ fruits: deleteFruits { id name } }')
+    assert not result.errors
+    assert result.data['fruits'] == [
+        { 'id': '1', 'name': 'fruit1' },
+        { 'id': '2', 'name': 'fruit2' },
+        { 'id': '3', 'name': 'fruit3' },
+    ]
+    assert list(models.Fruit.objects.values('id', 'name')) == []

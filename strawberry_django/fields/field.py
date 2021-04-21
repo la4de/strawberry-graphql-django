@@ -13,9 +13,8 @@ class Result:
     value: Any = None
 
 class DjangoFilters:
-    def __init__(self, filters=None, django_name=None, *args, **kwargs):
+    def __init__(self, filters=None, *args, **kwargs):
         self.filters = filters
-        self.django_name = django_name
         super().__init__(*args, **kwargs)
 
     @property
@@ -41,12 +40,15 @@ class DjangoFilters:
 
 
 class DjangoField(DjangoFilters, StrawberryField):
-    def __init__(self, *args, **kwargs):
-        self.hooks = kwargs.pop('hooks', [])
+    def __init__(self, django_name=None, hooks=None, *args, **kwargs):
+        self.django_name = django_name
+
+        self.hooks = hooks or []
         if isinstance(self.hooks, tuple):
             self.hooks = list(self.hooks)
         elif not isinstance(self.hooks, list):
             self.hooks = [self.hooks]
+
         super().__init__(*args, **kwargs)
 
     def get_result(self, kwargs, source, info):

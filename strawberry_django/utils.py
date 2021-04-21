@@ -75,3 +75,7 @@ def is_django_type(obj):
 
 def is_django_model(obj):
     return isinstance(obj, models.base.ModelBase)
+
+def is_django_field(obj):
+    from .fields.field import DjangoField
+    return isinstance(obj, DjangoField)

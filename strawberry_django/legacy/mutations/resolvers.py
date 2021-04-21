@@ -3,7 +3,7 @@ import strawberry
 from .. import fields, hooks, utils
 from ..type import generate_partial_input
 from ..queries.arguments import resolve_type_args
-from ..resolvers import django_resolver
+from ...resolvers import django_resolver
 
 def create(*args, types=None, pre_save=None, post_save=None):
     model, output_type, input_type = resolve_type_args(args, types=types, is_input=True, single=True)

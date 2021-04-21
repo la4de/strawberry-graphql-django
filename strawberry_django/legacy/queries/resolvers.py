@@ -3,7 +3,7 @@ from typing import List, Optional
 import inspect
 import strawberry
 from .. import hooks, utils
-from ..resolvers import django_resolver
+from ...resolvers import django_resolver
 from .arguments import resolve_type_args
 
 

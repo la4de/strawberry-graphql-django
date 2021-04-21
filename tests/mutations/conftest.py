@@ -1,19 +1,38 @@
 import pytest
 import strawberry
 import strawberry_django
+from .. import models
 from .. import types
+from .. import utils
+from .. types import (
+    Fruit, FruitInput, FruitPartialInput,
+    Color, ColorInput, ColorPartialInput,
+    FruitType, FruitTypeInput, FruitTypePartialInput,
+)
+from strawberry_django import mutations
+from typing import List
 
 @pytest.fixture
-def schema():
-    Query = strawberry_django.queries(types.User)
-    Mutation = strawberry_django.mutations(types.User, types.Group, types.Tag, types=types.types)
-    schema = strawberry.Schema(Query, mutation=Mutation)
-    return schema
+def fruits(db):
+    fruits = [ models.Fruit.objects.create(name=f'fruit{i+1}') for i in range(3) ]
+
+@strawberry.type
+class Mutation:
+    createFruit: Fruit = mutations.create(FruitInput)
+    createFruits: List[Fruit] = mutations.create(FruitInput, many=True)
+    updateFruits: List[Fruit] = mutations.update(FruitPartialInput, many=True)
+    deleteFruits: List[Fruit] = mutations.delete(many=True)
+
+    createColor: Color = mutations.create(ColorInput)
+    createColors: List[Color] = mutations.create(ColorInput, many=True)
+    updateColors: List[Color] = mutations.update(ColorPartialInput, many=True)
+    deleteColors: List[Color] = mutations.delete(many=True)
+
+    createFruitType: FruitType= mutations.create(FruitTypeInput)
+    createFruitTypes: List[FruitType] = mutations.create(FruitTypeInput, many=True)
+    updateFruitTypes: List[FruitType] = mutations.update(FruitTypePartialInput, many=True)
+    deleteFruitTypes: List[FruitType] = mutations.delete(many=True)
 
 @pytest.fixture
-def mutation(schema, db):
-    def mutation(mutation, variable_values=None):
-        if not mutation.startswith('mutation'):
-            mutation = 'mutation ' + mutation
-        return schema.execute_sync(mutation, variable_values=variable_values)
-    return mutation
+def mutation(db):
+    return utils.generate_query(mutation=Mutation)
