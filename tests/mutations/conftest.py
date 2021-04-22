@@ -12,10 +12,6 @@ from .. types import (
 from strawberry_django import mutations
 from typing import List
 
-@pytest.fixture
-def fruits(db):
-    fruits = [ models.Fruit.objects.create(name=f'fruit{i+1}') for i in range(3) ]
-
 @strawberry.type
 class Mutation:
     createFruit: Fruit = mutations.create(FruitInput)

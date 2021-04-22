@@ -4,6 +4,12 @@ import strawberry_django
 from . import models, types
 
 @pytest.fixture
+def fruits(db):
+    fruit_names = ['strawberry', 'raspberry', 'banana']
+    fruits = [ models.Fruit.objects.create(name=name) for name in fruit_names ]
+    return fruits
+
+@pytest.fixture
 def tag(db):
     tag = models.Tag.objects.create(name='tag')
     return tag

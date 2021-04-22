@@ -51,8 +51,8 @@ def test_delete(mutation, fruits):
     result = mutation('{ fruits: deleteFruits { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
-        { 'id': '1', 'name': 'fruit1' },
-        { 'id': '2', 'name': 'fruit2' },
-        { 'id': '3', 'name': 'fruit3' },
+        { 'id': '1', 'name': 'strawberry' },
+        { 'id': '2', 'name': 'raspberry' },
+        { 'id': '3', 'name': 'banana' },
     ]
     assert list(models.Fruit.objects.values('id', 'name')) == []
