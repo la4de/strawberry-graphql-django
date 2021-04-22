@@ -33,9 +33,10 @@ class DjangoFilters:
         return arguments
 
     def apply_filter(self, kwargs, source, info, queryset):
-        if self.filters:
-            filters = self.filters(**kwargs.get('filters'))
-            queryset = strawberry_django.filters.apply(filters, queryset)
+        filters = kwargs.get('filters')
+        if self.filters and filters:
+            from ..filters3 import filters_apply
+            queryset = filters_apply(filters, queryset)
         return queryset
 
 
