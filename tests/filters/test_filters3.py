@@ -60,7 +60,7 @@ def test_relationship(fruits):
     color.fruits.set([fruits[0], fruits[1]])
 
     query = utils.generate_query(Query)
-    result = query('{ fruits(filters: { color: { name: { iexact: "RED" } } }) { id name } }')
+    result = query('{ fruits(filters: { color: { name: { iExact: "RED" } } }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
         {'id': '1', 'name': 'strawberry'},

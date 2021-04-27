@@ -22,12 +22,12 @@ class Group:
     name: auto
     users: List[User]
 
-@strawberry_django.type
+@strawberry.type
 class Query:
-    user: User
-    users: List[User]
-    group: Group
-    groups: List[Group]
+    user: User = strawberry_django.field()
+    users: List[User] = strawberry_django.field()
+    group: Group = strawberry_django.field()
+    groups: List[Group] = strawberry_django.field()
 
 @pytest.fixture
 def query(db):

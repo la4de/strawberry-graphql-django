@@ -5,6 +5,8 @@ import strawberry_django
 from strawberry_django import auto
 from django.db import models
 import django
+from .. import utils
+from typing import List
 
 
 class FieldTypesModel(models.Model):
@@ -64,7 +66,7 @@ def test_field_types():
         url: auto
         uuid: auto
 
-    assert [(f.name, f.type) for f in Type._type_definition.fields] == [
+    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('id', strawberry.ID),
         ('boolean', bool),
         ('char', str),
@@ -98,7 +100,7 @@ def test_subset_of_fields():
         integer: auto
         text: auto
 
-    assert [(f.name, f.type) for f in Type._type_definition.fields] == [
+    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('id', strawberry.ID),
         ('integer', int),
         ('text', str),
@@ -114,7 +116,7 @@ def test_type_extension():
         def my_field() -> int:
             return 0
 
-    assert [(f.name, f.type) for f in Type._type_definition.fields] == [
+    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('char', str),
         ('text', bytes),
         ('my_field', int),
@@ -127,6 +129,7 @@ def test_field_does_not_exist():
         class Type:
             unknown_field: auto
 
+
 def test_override_field_type():
     @strawberry.enum
     class EnumType(enum.Enum):
@@ -136,16 +139,17 @@ def test_override_field_type():
     class Type:
         char: EnumType
 
-    assert [(f.name, f.type) for f in Type._type_definition.fields] == [
+    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('char', EnumType),
     ]
+
 
 def test_override_field_default_value():
     @strawberry_django.type(FieldTypesModel)
     class Type:
         char = 'my value'
 
-    assert [(f.name, f.type) for f in Type._type_definition.fields] == [
+    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('char', str),
     ]
 
@@ -161,10 +165,69 @@ def test_related_input_fields():
         related_one_to_one: auto
         many_to_many: auto
 
-    assert [(f.name, f.type, f.is_optional) for f in Input._type_definition.fields] == [
+    assert [(f.name, f.type, f.is_optional) for f in utils.type_fields(Input)] == [
         ('foreign_key', strawberry_django.OneToManyInput, True),
         ('related_foreign_key', strawberry_django.ManyToOneInput, True),
         ('one_to_one', strawberry_django.OneToOneInput, True),
         ('related_one_to_one', strawberry_django.OneToOneInput, True),
         ('many_to_many', strawberry_django.ManyToManyInput, True),
+    ]
+
+
+def test_inherit_type():
+    global Type
+
+    @strawberry_django.type(FieldTypesModel)
+    class Parent:
+        char: auto
+        one_to_one: 'Type'
+
+    @strawberry_django.type(FieldTypesModel)
+    class Type(Parent):
+        many_to_many: List['Type']
+
+    assert [(f.name, f.type or f.child.type) for f in utils.type_fields(Type)] == [
+        ('char', str),
+        ('one_to_one', Type),
+        ('many_to_many', Type),
+    ]
+
+
+def test_inherit_input():
+    global Type
+
+    @strawberry_django.type(FieldTypesModel)
+    class Type:
+        char: auto
+        one_to_one: 'Type'
+        many_to_many: List['Type']
+
+    @strawberry_django.input(FieldTypesModel)
+    class Input(Type):
+        id: auto
+        my_data: str
+
+    assert [(f.name, f.type) for f in utils.type_fields(Input)] == [
+        ('char', str),
+        ('one_to_one', strawberry_django.OneToOneInput),
+        ('many_to_many', strawberry_django.ManyToManyInput),
+        ('id', strawberry.ID),
+        ('my_data', str),
+    ]
+
+
+def test_type_from_type():
+    global Type
+
+    @strawberry_django.type(FieldTypesModel)
+    class Type:
+        char: auto
+        one_to_one: 'Type'
+        many_to_many: List['Type']
+
+    FruitInput = strawberry_django.types.from_type(Type, is_input=True)
+    assert [(f.name, f.type) for f in utils.type_fields(FruitInput)] == [
+        ('char', str),
+        ('one_to_one', strawberry_django.OneToOneInput),
+        ('many_to_many', strawberry_django.ManyToManyInput),
     ]

@@ -1,9 +1,10 @@
 import strawberry_django
 from django.db import models
 from strawberry.field import StrawberryField
-from strawberry.arguments import StrawberryArgument, UNSET
+from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments
 from asgiref.sync import sync_to_async
 from .. import utils
+from ..resolvers import django_resolver
 
 import dataclasses
 from typing import Any, List, Optional
@@ -20,9 +21,11 @@ class DjangoFilters:
     @property
     def arguments(self) -> List[StrawberryArgument]:
         arguments = super().arguments
-        if self.filters:
+
+        django_filter = self.django_filter
+        if django_filter:
             arg = StrawberryArgument(
-                type_=self.filters,
+                type_=django_filter,
                 python_name="filters",
                 graphql_name="filters",
                 default_value=UNSET,
@@ -30,9 +33,22 @@ class DjangoFilters:
                 origin=None,
             )
             arguments += [arg]
+
         return arguments
 
+    @property
+    def django_filter(self):
+        if self.base_resolver:
+            return
+        if not self.filters:
+            if self.is_django_type:
+                self.filters = strawberry_django.filter_from_type(self.django_type)
+        return self.filters
+
+
+
     def apply_filter(self, kwargs, source, info, queryset):
+        kwargs = convert_arguments(kwargs, self.arguments)
         filters = kwargs.get('filters')
         if self.filters and filters:
             from ..filters3 import filters_apply
@@ -111,6 +127,8 @@ class DjangoField(DjangoFilters, StrawberryField):
 
     @property
     def django_model(self):
+        if not self.is_django_type:
+            return
         return self.django_type._django_model
 
     @property

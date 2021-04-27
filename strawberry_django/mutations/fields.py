@@ -3,7 +3,7 @@ from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments, i
 from typing import List
 from asgiref.sync import sync_to_async
 from ..resolvers import django_resolver
-from .. import utils
+from .. import utils, types
 from ..fields.types import OneToOneInput, OneToManyInput, ManyToOneInput, ManyToManyInput
 
 from django.db import transaction
@@ -20,7 +20,10 @@ class DjangoMutation(StrawberryField):
 
     def post_init(self):
         type_ = self.type or self.child.type
-        if self.input_type:
+        if is_unset(self.input_type):
+            type_ = self.type or self.child.type
+            self.input_type = types.from_type(type_, is_input=True)
+        elif self.input_type:
             assert type_._django_model == self.input_type._django_model, ('Input'
                 ' and output types should be generated from the same Django model')
         self.django_model = type_._django_model

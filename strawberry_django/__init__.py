@@ -6,7 +6,11 @@ from .fields.types import (
 )
 from .filters import filter
 from .filters2 import filter_field, filter as filter2
-from .filters3 import filter as filter3, FilterLookup
+from .filters3 import (
+    filter as filter3,
+    FilterLookup,
+    from_type as filter_from_type,
+)
 from .mutations.mutations import mutations
 from .resolvers import django_resolver
 from .type import type, input
