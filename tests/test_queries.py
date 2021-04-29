@@ -38,11 +38,11 @@ pytestmark = [
     pytest.mark.django_db(transaction=True),
 ]
 
-async def test_single(query, user):
-    result = await query('{ user { name } }')
+async def test_single(query, users):
+    result = await query('{ user(pk: 1) { name } }')
 
     assert not result.errors
-    assert result.data['user'] == { 'name': user.name }
+    assert result.data['user'] == { 'name': users[0].name }
 
 async def test_many(query, users):
     result = await query('{ users { name } }')

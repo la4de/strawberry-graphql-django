@@ -1,17 +1,18 @@
 from django.db import models
 from strawberry.field import StrawberryField
-from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments
+from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments, is_unset
+import strawberry
 from .. import utils
 from ..resolvers import django_resolver
 
-from typing import List
+from typing import List, Optional
 
-def argument(name, type_):
+def argument(name, type_, default=UNSET):
     return StrawberryArgument(
         type_=type_,
         python_name=name,
         graphql_name=name,
-        default_value=UNSET,
+        default_value=default,
         description=None,
         origin=None,
     )
@@ -26,11 +27,17 @@ class StrawberryDjangoFieldFilters:
     def arguments(self) -> List[StrawberryArgument]:
         arguments = super().arguments
 
-        django_filters = self.django_filters
-        if django_filters:
-            arguments += [
-                argument('filters', django_filters)
-            ]
+        if not self.base_resolver:
+            if not self.is_list and self.django_model:
+                arguments += [
+                    argument('pk', strawberry.ID)
+                ]
+
+            django_filters = self.django_filters
+            if django_filters:
+                arguments += [
+                    argument('filters', django_filters)
+                ]
 
         return arguments
 
@@ -41,10 +48,15 @@ class StrawberryDjangoFieldFilters:
         return self.filters
 
     def apply_filter(self, kwargs, source, info, queryset):
-        filters = kwargs.get('filters')
-        if self.filters and filters:
+        pk = kwargs.get('pk', UNSET)
+        if not is_unset(pk):
+            queryset = queryset.filter(pk=pk)
+
+        filters = kwargs.get('filters', UNSET)
+        if not is_unset(filters):
             from ..filters3 import filters_apply
             queryset = filters_apply(filters, queryset)
+
         return queryset
 
 
