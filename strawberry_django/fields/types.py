@@ -1,5 +1,6 @@
 from django.db.models import fields
-from typing import get_origin, List, Optional
+from django.db.models.fields.reverse_related import ForeignObjectRel, ManyToOneRel
+from typing import List, Optional
 import strawberry
 from strawberry.arguments import UNSET
 import datetime, decimal, uuid
@@ -19,6 +20,10 @@ class DjangoImageType(DjangoFileType):
     width: int
     height: int
 
+@strawberry.type
+class DjangoModelType:
+    pk: strawberry.ID
+
 @strawberry.input
 class OneToOneInput:
     set: Optional[strawberry.ID]
@@ -29,12 +34,6 @@ class OneToManyInput:
 
 @strawberry.input
 class ManyToOneInput:
-    add: Optional[List[strawberry.ID]] = UNSET
-    remove: Optional[List[strawberry.ID]] = UNSET
-    set: Optional[List[strawberry.ID]] = UNSET
-
-@strawberry.input
-class ManyToManyInput:
     add: Optional[List[strawberry.ID]] = UNSET
     remove: Optional[List[strawberry.ID]] = UNSET
     set: Optional[List[strawberry.ID]] = UNSET
@@ -73,6 +72,12 @@ field_type_map = {
     fields.TimeField: datetime.time,
     fields.URLField: str,
     fields.UUIDField: uuid.UUID,
+    fields.related.ForeignKey: DjangoModelType,
+    fields.reverse_related.ManyToOneRel: List[DjangoModelType],
+    fields.related.OneToOneField: DjangoModelType,
+    fields.reverse_related.OneToOneRel: DjangoModelType,
+    fields.related.ManyToManyField: List[DjangoModelType],
+    fields.reverse_related.ManyToManyRel: List[DjangoModelType],
 }
 
 input_field_type_map = {
@@ -94,10 +99,9 @@ def resolve_model_field_type(model_field, is_input):
     if field_type is None:
         field_type = field_type_map[model_field_type]
     if field_type is NotImplemented:
-        raise NotImplementedError("GraphQL type for model field '{model_field}' has not been implemented yet")
+        raise NotImplementedError("GraphQL type for model field '{model_field}' has not been implemented")
     return field_type
 
-from django.db.models.fields.reverse_related import ForeignObjectRel, ManyToOneRel
 
 def resolve_model_field_name(model_field, is_input):
     if isinstance(model_field, (ForeignObjectRel, ManyToOneRel)):
@@ -111,17 +115,22 @@ def resolve_model_field_name(model_field, is_input):
 def is_auto(type_):
     return type_ is auto
 
-def is_optional(field, is_input, partial):
+
+def is_optional(model_field, is_input, partial):
+    if partial:
+        return True
+    if not model_field:
+        return False
     if is_input:
-        if isinstance(field, fields.AutoField):
+        if isinstance(model_field, fields.AutoField):
             return True
-        if isinstance(field, fields.reverse_related.OneToOneRel):
-            return field.null
-        if field.many_to_many or field.one_to_many:
+        if isinstance(model_field, fields.reverse_related.OneToOneRel):
+            return model_field.null
+        if model_field.many_to_many or model_field.one_to_many:
             return True
-        has_default = field.default != fields.NOT_PROVIDED
-        if field.blank or partial or has_default:
+        has_default = model_field.default is not fields.NOT_PROVIDED
+        if model_field.blank or has_default:
             return True
-    if field.null:
+    if model_field.null:
         return True
     return False

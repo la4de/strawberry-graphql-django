@@ -1,19 +1,23 @@
-import strawberry_django
 from django.db import models
 from strawberry.field import StrawberryField
 from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments
-from asgiref.sync import sync_to_async
 from .. import utils
 from ..resolvers import django_resolver
 
-import dataclasses
-from typing import Any, List, Optional
+from typing import List
 
-@dataclasses.dataclass
-class Result:
-    value: Any = None
+def argument(name, type_):
+    return StrawberryArgument(
+        type_=type_,
+        python_name=name,
+        graphql_name=name,
+        default_value=UNSET,
+        description=None,
+        origin=None,
+    )
 
-class DjangoFilters:
+
+class StrawberryDjangoFieldFilters:
     def __init__(self, filters=None, *args, **kwargs):
         self.filters = filters
         super().__init__(*args, **kwargs)
@@ -22,33 +26,21 @@ class DjangoFilters:
     def arguments(self) -> List[StrawberryArgument]:
         arguments = super().arguments
 
-        django_filter = self.django_filter
-        if django_filter:
-            arg = StrawberryArgument(
-                type_=django_filter,
-                python_name="filters",
-                graphql_name="filters",
-                default_value=UNSET,
-                description=None,
-                origin=None,
-            )
-            arguments += [arg]
+        django_filters = self.django_filters
+        if django_filters:
+            arguments += [
+                argument('filters', django_filters)
+            ]
 
         return arguments
 
     @property
-    def django_filter(self):
+    def django_filters(self):
         if self.base_resolver:
             return
-        if not self.filters:
-            if self.is_django_type:
-                self.filters = strawberry_django.filter_from_type(self.django_type)
         return self.filters
 
-
-
     def apply_filter(self, kwargs, source, info, queryset):
-        kwargs = convert_arguments(kwargs, self.arguments)
         filters = kwargs.get('filters')
         if self.filters and filters:
             from ..filters3 import filters_apply
@@ -56,57 +48,33 @@ class DjangoFilters:
         return queryset
 
 
-class DjangoField(DjangoFilters, StrawberryField):
-    def __init__(self, django_name=None, hooks=None, *args, **kwargs):
+class StrawberryDjangoField(
+        StrawberryDjangoFieldFilters,
+        StrawberryField):
+
+    def __init__(self, django_name=None, **kwargs):
+        super().__init__(**kwargs)
         self.django_name = django_name
 
-        self.hooks = hooks or []
-        if isinstance(self.hooks, tuple):
-            self.hooks = list(self.hooks)
-        elif not isinstance(self.hooks, list):
-            self.hooks = [self.hooks]
+    @property
+    def django_model(self):
+        type_ = self.type or self.child.type
+        return getattr(type_, '_django_model', None)
 
-        super().__init__(*args, **kwargs)
-
-    def get_result(self, kwargs, source, info):
-        result = Result()
-        sync_resolver = None
-
+    def get_result(self, kwargs, info, source):
         if self.base_resolver:
-            if not self.base_resolver.is_async:
-                sync_resolver = super().get_result
+            args, kwargs = self._get_arguments(kwargs, source=source, info=info)
+            return self.base_resolver(*args, **kwargs)
+        return self.get_django_result(kwargs, info, source)
 
-        else:
-            if self.is_django_type:
-                sync_resolver = self.django_resolver
+    @django_resolver
+    def get_django_result(self, kwargs, info, source):
+        kwargs = convert_arguments(kwargs, self.arguments)
+        return self.resolver(info=info, source=source, **kwargs)
 
-        if sync_resolver:
-            if utils.is_async():
-                @sync_to_async(thread_sensitive=True)
-                def resolve():
-                    result.value = sync_resolver(kwargs, source, info)
-                    self.call_hooks(root=source, info=info, result=result)
-                    if isinstance(result.value, models.QuerySet):
-                        # force query execution
-                        result.value = list(result.value)
-                    return result.value
-                return resolve()
-            else:
-                result.value = sync_resolver(kwargs, source, info)
-                self.call_hooks(root=source, info=info, result=result)
-                return result.value
-
-        if self.django_name:
-            result.value = getattr(source, self.django_name)
-        else:
-            result.value = super().get_result(kwargs, source, info)
-        self.call_hooks(root=source, info=info, result=result)
-        return result.value
-
-
-    def django_resolver(self, kwargs, source, info):
-
+    def resolver(self, info, source, **kwargs):
         if source is None:
+            #TODO: would there be better and safer way to detect root?
             # root query object
             result = self.django_model.objects.all()
 
@@ -125,36 +93,17 @@ class DjangoField(DjangoFilters, StrawberryField):
         return result
 
 
-    @property
-    def django_model(self):
-        if not self.is_django_type:
-            return
-        return self.django_type._django_model
-
-    @property
-    def django_type(self):
-        return self.type or self.child.type
-
-    @property
-    def is_django_type(self):
-        return utils.is_django_type(self.django_type)
-
-    def hook(self, hook):
-        self.hooks.append(hook)
-
-    def call_hooks(self, *args, **kwargs):
-        for hook in self.hooks:
-            hook(*args, **kwargs)
-
-def field(resolver=None, *, name=None, filters=None, field_name=None, **kwargs):
-    field_ = DjangoField(
+def field(resolver=None, *, name=None, filters=None, field_name=None, default=UNSET, **kwargs):
+    field_ = StrawberryDjangoField(
         python_name=None,
         graphql_name=name,
         type_=None,
         filters=filters,
         django_name=field_name,
+        default_value=default,
         **kwargs
     )
     if resolver:
+        resolver = django_resolver(resolver)
         return field_(resolver)
     return field_

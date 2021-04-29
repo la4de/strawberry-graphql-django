@@ -1,7 +1,7 @@
 import pytest
 import strawberry
 import strawberry_django
-from . import models, types
+from . import models, types, utils
 
 @pytest.fixture
 def fruits(db):
@@ -46,3 +46,11 @@ def schema():
     Query = strawberry_django.queries(types.User, types.Group, types.Tag)
     schema = strawberry.Schema(query=Query)
     return schema
+
+@pytest.fixture(params=[
+    strawberry_django.type,
+    strawberry_django.input,
+    utils.dataclass,
+])
+def testtype(request):
+    return request.param

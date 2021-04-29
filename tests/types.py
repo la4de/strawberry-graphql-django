@@ -23,32 +23,24 @@ class FruitType:
     fruits: List[Fruit]
 
 @strawberry_django.input(models.Fruit)
-class FruitInput:
-    id: auto
-    name: auto
-    color: auto
+class FruitInput(Fruit):
+    pass
 
 @strawberry_django.input(models.Color)
-class ColorInput:
-    id: auto
-    name: auto
-    fruits: auto
+class ColorInput(Color):
+    pass
 
 @strawberry_django.input(models.FruitType)
-class FruitTypeInput:
-    id: auto
-    name: auto
-    fruits: auto
+class FruitTypeInput(FruitType):
+    pass
 
 @strawberry_django.input(models.Fruit, partial=True)
 class FruitPartialInput(FruitInput):
-    name: auto
-    color: auto
+    pass
 
 @strawberry_django.input(models.Color, partial=True)
-class ColorPartialInput(Color):
-    name: auto
-    fruits: auto
+class ColorPartialInput(ColorInput):
+    pass
 
 @strawberry_django.input(models.FruitType, partial=True)
 class FruitTypePartialInput(FruitTypeInput):

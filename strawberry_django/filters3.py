@@ -49,15 +49,19 @@ def from_type(type_, _depth=3):
         field_name = field.django_name
         if not field_name:
             continue
+
         field_type = field.type or field.child.type
         if field_type is bool:
             pass
+
         elif is_strawberry_type(field_type):
             field_type = from_type(field_type, _depth - 1)
             if field_type is None:
                 continue
+
         else:
             field_type = FilterLookup[field_type]
+
         fields.append((field_name, field_type))
 
     if not fields:
@@ -67,18 +71,19 @@ def from_type(type_, _depth=3):
     cls = dataclasses.make_dataclass(filter_name, fields)
     return filter(cls)
 
+from .fields.utils import iter_class_fields
 
-def filter(cls):
+def _process_filter(cls, lookups):
     for key, value in cls.__annotations__.items():
         cls.__annotations__[key] = Optional[value]
         setattr(cls, key, getattr(cls, key, UNSET))
     return strawberry.input(cls)
 
+def filter(cls, *, lookups=False):
+    return _process_filter(cls, lookups)
 
 def build_filter_kwargs(filters):
     kwargs = {}
-    print(filters)
-    #for key, value in filters.items():
     for key, value in vars(filters).items():
         if is_unset(value):
             continue

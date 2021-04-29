@@ -1,9 +1,10 @@
 from . import filters
 from .fields import auto, field
 from .fields.types import (
-    DjangoFileType, DjangoImageType,
+    DjangoFileType, DjangoImageType, DjangoModelType,
     OneToOneInput, OneToManyInput, ManyToOneInput, ManyToManyInput,
 )
+from .fields.utils import fields
 from .filters import filter
 from .filters2 import filter_field, filter as filter2
 from .filters3 import (

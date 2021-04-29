@@ -1,3 +1,4 @@
+import dataclasses
 import strawberry
 import strawberry_django
 from strawberry_django.utils import type_fields
@@ -23,3 +24,8 @@ def generate_query(query=None, mutation=None):
         result = schema.execute_sync(query, variable_values=variable_values)
         return process_result(result)
     return query_sync
+
+def dataclass(model):
+    def wrapper(cls):
+        return dataclasses.dataclass(cls)
+    return wrapper

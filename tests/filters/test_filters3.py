@@ -1,3 +1,4 @@
+import pytest
 import strawberry_django
 import strawberry
 from strawberry_django import FilterLookup
@@ -20,8 +21,11 @@ class FruitFilter:
 class Query:
     fruits: List[Fruit] = strawberry_django.field(filters=FruitFilter)
 
-def test_empty(fruits):
-    query = utils.generate_query(Query)
+@pytest.fixture
+def query():
+    return utils.generate_query(Query)
+
+def test_empty(query, fruits):
     result = query('{ fruits { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
@@ -30,24 +34,21 @@ def test_empty(fruits):
         {'id': '3', 'name': 'banana'},
     ]
 
-def test_exact(fruits):
-    query = utils.generate_query(Query)
+def test_exact(query, fruits):
     result = query('{ fruits(filters: { name: { exact: "strawberry" } }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
         {'id': '1', 'name': 'strawberry'},
     ]
 
-def test_lt_gt(fruits):
-    query = utils.generate_query(Query)
+def test_lt_gt(query, fruits):
     result = query('{ fruits(filters: { id: { gt: 1, lt: 3 } }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
         {'id': '2', 'name': 'raspberry'},
     ]
 
-def test_in_list(fruits):
-    query = utils.generate_query(Query)
+def test_in_list(query, fruits):
     result = query('{ fruits(filters: { id: { inList: [ 1, 3 ] } }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
@@ -55,11 +56,10 @@ def test_in_list(fruits):
         {'id': '3', 'name': 'banana'},
     ]
 
-def test_relationship(fruits):
+def test_relationship(query, fruits):
     color = models.Color.objects.create(name='red')
     color.fruits.set([fruits[0], fruits[1]])
 
-    query = utils.generate_query(Query)
     result = query('{ fruits(filters: { color: { name: { iExact: "RED" } } }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [

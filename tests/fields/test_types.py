@@ -2,7 +2,7 @@ import datetime, decimal, enum, uuid
 import pytest
 import strawberry
 import strawberry_django
-from strawberry_django import auto
+from strawberry_django import auto, fields
 from django.db import models
 import django
 from .. import utils
@@ -100,7 +100,7 @@ def test_subset_of_fields():
         integer: auto
         text: auto
 
-    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type) for f in fields(Type)] == [
         ('id', strawberry.ID),
         ('integer', int),
         ('text', str),
@@ -147,7 +147,7 @@ def test_override_field_type():
 def test_override_field_default_value():
     @strawberry_django.type(FieldTypesModel)
     class Type:
-        char = 'my value'
+        char: str = 'my value'
 
     assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
         ('char', str),
