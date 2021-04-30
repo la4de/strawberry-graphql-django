@@ -24,7 +24,7 @@ def resolve_django_name(model, field_name, field_value, is_input, is_filter):
 
 def is_field_type_inherited_from_different_object_type(cls, field_name, is_input, is_filter):
     # TODO: optimize and simplify
-    for c in reversed(cls.__mro__[1:]):
+    for c in reversed(cls.__mro__):
         annotations = {}
         if '_orig_annotations' in c.__dict__:
             annotations = c._orig_annotations

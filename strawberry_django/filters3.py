@@ -54,9 +54,15 @@ def filter(model, *, lookups=False):
 
 def build_filter_kwargs(filters):
     kwargs = {}
+    django_model = getattr(filters, '_django_model', None)
     for field_name, field_value in vars(filters).items():
         if is_unset(field_value):
             continue
+
+        if django_model:
+            if field_name not in django_model._meta._forward_fields_map:
+                continue
+
         if field_name in lookup_name_conversion_map:
             field_name = lookup_name_conversion_map[field_name]
         if utils.is_strawberry_type(field_value):
@@ -69,4 +75,7 @@ def build_filter_kwargs(filters):
 def filters_apply(filters, queryset):
     kwargs = build_filter_kwargs(filters)
     queryset = queryset.filter(**kwargs)
+    filter_method = getattr(filters, 'filter', None)
+    if filter_method:
+        queryset = filter_method(queryset)
     return queryset

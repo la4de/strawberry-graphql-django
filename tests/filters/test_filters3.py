@@ -17,10 +17,17 @@ class FruitFilter:
     id: auto
     name: auto
     color: ColorFilter
+    search: str
+
+    def filter(self, queryset):
+        if self.search:
+            queryset = queryset.filter(name__icontains=self.search)
+        return queryset
 
 @strawberry.type
 class Query:
     fruits: List[Fruit] = strawberry_django.field(filters=FruitFilter)
+    fruits_method: List[Fruit] = strawberry_django.field(filters=FruitFilter)
 
 @pytest.fixture
 def query():
@@ -67,6 +74,15 @@ def test_relationship(query, fruits):
     color.fruits.set([fruits[0], fruits[1]])
 
     result = query('{ fruits(filters: { color: { name: { iExact: "RED" } } }) { id name } }')
+    assert not result.errors
+    assert result.data['fruits'] == [
+        {'id': '1', 'name': 'strawberry'},
+        {'id': '2', 'name': 'raspberry'},
+    ]
+
+
+def test_filter_method(query, fruits):
+    result = query('{ fruits(filters: { search: "berry" }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
         {'id': '1', 'name': 'strawberry'},
