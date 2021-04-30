@@ -103,10 +103,10 @@ def resolve_model_field_type(model_field, is_input):
     return field_type
 
 
-def resolve_model_field_name(model_field, is_input):
+def resolve_model_field_name(model_field, is_input, is_filter):
     if isinstance(model_field, (ForeignObjectRel, ManyToOneRel)):
         return model_field.get_accessor_name()
-    if is_input:
+    if is_input and not is_filter:
         return model_field.attname
     else:
         return model_field.name

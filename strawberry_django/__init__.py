@@ -10,7 +10,6 @@ from .filters2 import filter_field, filter as filter2
 from .filters3 import (
     filter as filter3,
     FilterLookup,
-    from_type as filter_from_type,
 )
 from .mutations.mutations import mutations
 from .resolvers import django_resolver

@@ -3,9 +3,15 @@ from typing import Generic, List, Optional, TypeVar, Union
 import dataclasses
 import strawberry
 
-from .utils import is_strawberry_type, type_fields, is_django_field
+from . import utils
+from .fields import is_auto
+from .type import process_type
 
 T= TypeVar("T")
+
+@strawberry.input
+class DjangoModelFilterInput:
+    pk: strawberry.ID
 
 @strawberry.input
 class FilterLookup(Generic[T]):
@@ -18,10 +24,10 @@ class FilterLookup(Generic[T]):
     gte: Optional[T] = UNSET
     lt: Optional[T] = UNSET
     lte: Optional[T] = UNSET
-    startswith: Optional[T] = UNSET
-    i_startswith: Optional[T] = UNSET
-    endswith: Optional[T] = UNSET
-    i_endswith: Optional[T] = UNSET
+    starts_with: Optional[T] = UNSET
+    i_starts_with: Optional[T] = UNSET
+    ends_with: Optional[T] = UNSET
+    i_ends_with: Optional[T] = UNSET
     range: Optional[List[T]] = UNSET
     is_null: Optional[bool] = UNSET
     regex: Optional[str] = UNSET
@@ -31,69 +37,33 @@ lookup_name_conversion_map = {
     'i_exact': 'iexact',
     'i_contains': 'icontains',
     'in_list': 'in',
-    'i_startswith': 'istartswith',
-    'i_endswith': 'iendswith',
+    'starts_with': 'startswith',
+    'i_starts_with': 'istartswith',
+    'ends_with': 'endswith',
+    'i_ends_with': 'iendswith',
     'is_null': 'isnull',
     'i_regex': 'iregex',
 }
 
-def from_type(type_, _depth=3):
-    if _depth == 0:
-        return
-
-    fields = []
-    for field in type_fields(type_):
-        if not is_django_field(field):
-            continue
-
-        field_name = field.django_name
-        if not field_name:
-            continue
-
-        field_type = field.type or field.child.type
-        if field_type is bool:
-            pass
-
-        elif is_strawberry_type(field_type):
-            field_type = from_type(field_type, _depth - 1)
-            if field_type is None:
-                continue
-
-        else:
-            field_type = FilterLookup[field_type]
-
-        fields.append((field_name, field_type))
-
-    if not fields:
-        return
-
-    filter_name = f'{type_.__name__}FilterType'
-    cls = dataclasses.make_dataclass(filter_name, fields)
-    return filter(cls)
-
-from .fields.utils import iter_class_fields
-
-def _process_filter(cls, lookups):
-    for key, value in cls.__annotations__.items():
-        cls.__annotations__[key] = Optional[value]
-        setattr(cls, key, getattr(cls, key, UNSET))
-    return strawberry.input(cls)
-
-def filter(cls, *, lookups=False):
-    return _process_filter(cls, lookups)
+def filter(model, *, lookups=False):
+    def wrapper(cls):
+        is_filter = lookups and 'lookups' or True
+        type_ = process_type(cls, model, is_input=True, partial=True, is_filter=is_filter)
+        return type_
+    return wrapper
 
 def build_filter_kwargs(filters):
     kwargs = {}
-    for key, value in vars(filters).items():
-        if is_unset(value):
+    for field_name, field_value in vars(filters).items():
+        if is_unset(field_value):
             continue
-        if key in lookup_name_conversion_map:
-            key = lookup_name_conversion_map[key]
-        if hasattr(value, '_type_definition'):
-            for key2, value2 in build_filter_kwargs(value).items():
-                kwargs[f'{key}__{key2}'] = value2
+        if field_name in lookup_name_conversion_map:
+            field_name = lookup_name_conversion_map[field_name]
+        if utils.is_strawberry_type(field_value):
+            for subfield_name, subfield_value in build_filter_kwargs(field_value).items():
+                kwargs[f'{field_name}__{subfield_name}'] = subfield_value
         else:
-            kwargs[key] = value
+            kwargs[field_name] = field_value
     return kwargs
 
 def filters_apply(filters, queryset):
