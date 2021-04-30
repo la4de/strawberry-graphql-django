@@ -83,8 +83,6 @@ def get_fields(cls, model, is_input, partial, is_filter):
             field = StrawberryDjangoField(
                 default_value=field_value,
                 django_name=django_name,
-                graphql_name=field_name,
-                python_name=field_name,
                 type_=field_type
             )
             if is_input:

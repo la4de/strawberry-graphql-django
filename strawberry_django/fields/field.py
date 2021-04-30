@@ -1,20 +1,22 @@
 from django.db import models
-from strawberry.field import StrawberryField
 from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments, is_unset
+from strawberry.field import StrawberryField
+from strawberry.types.types import undefined
 import strawberry
 from .. import utils
 from ..resolvers import django_resolver
 
 from typing import List, Optional
 
-def argument(name, type_, default=UNSET):
+def argument(name, type_, is_optional=False, default_value=undefined):
     return StrawberryArgument(
-        type_=type_,
-        python_name=name,
-        graphql_name=name,
-        default_value=default,
+        default_value=default_value,
         description=None,
+        graphql_name=name,
+        is_optional=is_optional,
         origin=None,
+        python_name=name,
+        type_=type_,
     )
 
 
@@ -30,13 +32,13 @@ class StrawberryDjangoFieldFilters:
         if not self.base_resolver:
             if not self.is_list and self.django_model:
                 arguments += [
-                    argument('pk', strawberry.ID)
+                    argument('pk', strawberry.ID, is_optional=True)
                 ]
 
             django_filters = self.django_filters
             if django_filters:
                 arguments += [
-                    argument('filters', django_filters)
+                    argument('filters', django_filters, is_optional=True)
                 ]
 
         return arguments
@@ -64,8 +66,8 @@ class StrawberryDjangoField(
         StrawberryDjangoFieldFilters,
         StrawberryField):
 
-    def __init__(self, django_name=None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, django_name=None, graphql_name=None, python_name=None, **kwargs):
+        super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
         self.django_name = django_name
 
     @property
