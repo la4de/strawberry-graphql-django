@@ -6,10 +6,10 @@ import strawberry
 import strawberry_django
 from .. import models, utils
 
-from strawberry_django.filters3 import DjangoModelFilterInput
+from strawberry_django.filters import DjangoModelFilterInput
 
 def test_filter():
-    @strawberry_django.filter3(models.Fruit)
+    @strawberry_django.filter(models.Fruit)
     class Filter:
         id: auto
         name: auto
@@ -24,7 +24,7 @@ def test_filter():
     ]
 
 def test_lookups():
-    @strawberry_django.filter3(models.Fruit, lookups=True)
+    @strawberry_django.filter(models.Fruit, lookups=True)
     class Filter:
         id: auto
         name: auto
@@ -46,7 +46,7 @@ def test_inherit(testtype):
         color: auto
         types: auto
 
-    @strawberry_django.filter3(models.Fruit)
+    @strawberry_django.filter(models.Fruit)
     class Filter(Base):
         pass
 

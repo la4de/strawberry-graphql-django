@@ -7,22 +7,22 @@ from ..types import Fruit
 from .. import utils, models
 from typing import Any, List
 
-@strawberry_django.filter3(models.Color, lookups=True)
+@strawberry_django.filter(models.Color, lookups=True)
 class ColorFilter:
     id: auto
     name: auto
 
-@strawberry_django.filter3(models.Fruit, lookups=True)
+@strawberry_django.filter(models.Fruit, lookups=True)
 class FruitFilter:
     id: auto
     name: auto
     color: ColorFilter
 
-    @strawberry_django.filters3.field
+    @strawberry_django.filters.field
     def search(self, queryset) -> str:
         return queryset.filter(name__icontains=self.search)
 
-@strawberry_django.filter3(models.Fruit)
+@strawberry_django.filter(models.Fruit)
 class FruitSearchFilter:
     name: auto
 

@@ -56,7 +56,7 @@ class StrawberryDjangoFieldFilters:
 
         filters = kwargs.get('filters', UNSET)
         if not is_unset(filters):
-            from ..filters3 import filters_apply
+            from ..filters import apply as filters_apply
             queryset = filters_apply(filters, queryset)
 
         return queryset

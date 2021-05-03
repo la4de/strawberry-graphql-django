@@ -1,21 +1,26 @@
 import pytest
+import django_filters
 import strawberry_django
 from strawberry_django.filters import DummyDjangoFilters
 
 
 @pytest.fixture
 def django_filters_mock(mocker):
-    return mocker.patch('strawberry_django.filters.django_filters', DummyDjangoFilters())
+    return mocker.patch('strawberry_django.legacy.filters.django_filters', DummyDjangoFilters())
 
 
 def test_filter_with_dummy_filters_raises_error(django_filters_mock):
     with pytest.raises(ModuleNotFoundError):
-        strawberry_django.filter()
+        @strawberry_django.filter
+        class Filter(django_filters.FilterSet):
+            pass
 
 
 def test_apply_filter_with_dummy_filters_raises_error(django_filters_mock):
+    class filter_instance:
+        filterset_class = 'dummy'
     with pytest.raises(ModuleNotFoundError):
-        strawberry_django.filters.apply()
+        strawberry_django.filters.apply(filter_instance, None)
 
 
 def test_get_field_type_with_dummy_filters_raises_error(django_filters_mock):

@@ -55,7 +55,7 @@ def resolve_field_type(cls, model, field_name, django_name, field_type, is_input
         if model_field and model_field.is_relation:
             if is_filter:
                 if is_auto(field_type):
-                    from . import filters3 as filters
+                    from . import filters
                     field_type = filters.DjangoModelFilterInput
 
     if is_auto(field_type):
@@ -63,7 +63,7 @@ def resolve_field_type(cls, model, field_name, django_name, field_type, is_input
 
     if is_filter == 'lookups':
         if model_field and not model_field.is_relation:
-            from . import filters3 as filters
+            from . import filters
             if field_type not in (bool, filters.DjangoModelFilterInput):
                 field_type = filters.FilterLookup[field_type]
 

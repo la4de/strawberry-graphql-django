@@ -1,147 +1,135 @@
-import functools
-from typing import Type, Optional, List
-import strawberry
-from graphql import GraphQLError
 from strawberry.arguments import UNSET, is_unset
+from typing import Generic, List, Optional, TypeVar, Union
+import dataclasses
+import strawberry
+from strawberry.field import StrawberryField
 
+from . import utils
+from .fields import is_auto
+from .type import process_type
 
-__all__ = [
-    "InvalidFilterError",
-    "apply",
-    "filter",
-    "get_field_type",
-    "set_field_type",
-]
+# for backward compatibility
+from .legacy.filters import get_field_type, set_field_type
 
+T= TypeVar("T")
 
-class DummyDjangoFilters:
-    def __getattribute__(self, attr):
-        # make mocker happy
-        if attr == '__enter__':
-            raise AttributeError
+@strawberry.input
+class DjangoModelFilterInput:
+    pk: strawberry.ID
 
-try:
-    import django_filters
-except ModuleNotFoundError:
-    django_filters = DummyDjangoFilters()
+@strawberry.input
+class FilterLookup(Generic[T]):
+    exact: Optional[T] = UNSET
+    i_exact: Optional[T] = UNSET
+    contains: Optional[T] = UNSET
+    i_contains: Optional[T] = UNSET
+    in_list: Optional[List[T]] = UNSET
+    gt: Optional[T] = UNSET
+    gte: Optional[T] = UNSET
+    lt: Optional[T] = UNSET
+    lte: Optional[T] = UNSET
+    starts_with: Optional[T] = UNSET
+    i_starts_with: Optional[T] = UNSET
+    ends_with: Optional[T] = UNSET
+    i_ends_with: Optional[T] = UNSET
+    range: Optional[List[T]] = UNSET
+    is_null: Optional[bool] = UNSET
+    regex: Optional[str] = UNSET
+    i_regex: Optional[str] = UNSET
 
-
-def assert_django_filters_installed(fn):
-    @functools.wraps(fn)
-    def wrapper(*args, **kwargs):
-        if isinstance(django_filters, DummyDjangoFilters):
-            raise ModuleNotFoundError(
-                'You need to install django-filter to use "strawberry_django.filter". '
-                "See https://django-filter.readthedocs.io/"
-            )
-        return fn(*args, **kwargs)
-    return wrapper
-
-
-# TODO
-#  Some projects might want to change this to eg UUID
-#  We should make it configurable
-#  In the meantime they can overwrite "type_map" using "set_filter_field_type"
-ID_TYPE = strawberry.ID
-
-
-filter_field_type_map = {
-    django_filters.BooleanFilter: Optional[bool],
-    django_filters.CharFilter: Optional[str],
-    django_filters.ChoiceFilter: Optional[str],
-    django_filters.DateFilter: Optional[str],
-    django_filters.DateTimeFilter: Optional[str],
-    django_filters.DurationFilter: Optional[str],
-    django_filters.IsoDateTimeFilter: Optional[str],
-    django_filters.ModelChoiceFilter: Optional[ID_TYPE],
-    django_filters.ModelMultipleChoiceFilter: Optional[List[ID_TYPE]],
-    django_filters.MultipleChoiceFilter: Optional[List[str]],
-    # Use str for number fields, because it might be int, decimal or float, and casting
-    # it to any of those types might cause incorrect results for the other types.
-    django_filters.NumberFilter: Optional[str],
-    django_filters.TimeFilter: Optional[str],
-    django_filters.UUIDFilter: Optional[str],
-
-    # Not implemented because its difficult or impossible to create input types:
-    # django_filters.AllValuesFilter
-    # django_filters.AllValuesMultipleFilter
-    # django_filters.DateFromToRangeFilter
-    # django_filters.DateRangeFilter
-    # django_filters.DateTimeFromToRangeFilter
-    # django_filters.IsoDateTimeFromToRangeFilter
-    # django_filters.OrderingFilter
-    # django_filters.RangeFilter
-    # django_filters.NumericRangeFilter
-    # django_filters.TimeRangeFilter
-    # django_filters.LookupChoiceFilter
-    # django_filters.TypedChoiceFilter
-    # django_filters.TypedMultipleChoiceFilter
+lookup_name_conversion_map = {
+    'i_exact': 'iexact',
+    'i_contains': 'icontains',
+    'in_list': 'in',
+    'starts_with': 'startswith',
+    'i_starts_with': 'istartswith',
+    'ends_with': 'endswith',
+    'i_ends_with': 'iendswith',
+    'is_null': 'isnull',
+    'i_regex': 'iregex',
 }
 
+class StrawberryDjangoFilterField(StrawberryField):
+    def __call__(self, filter_):
+        self._filter = filter_
+        self.type = filter_.__annotations__['return']
+        return self
 
-class InvalidFilterError(GraphQLError):
-    pass
 
+def field(filter=None, *, name=None, **kwargs):
+    field_ = StrawberryDjangoFilterField(
+        python_name=None,
+        graphql_name=name,
+        type_=None,
+        **kwargs)
+    if filter:
+        return field_(filter)
+    return field_
 
-@assert_django_filters_installed
-def get_field_type(field_type):
-    if type(field_type) != type:
-        raise TypeError(
-            f"expected 'type', received {type(field_type)}. Maybe you forgot to call type()?"
-        )
+def filter(model, *, lookups=False, name=None):
     try:
-        return filter_field_type_map[field_type]
-    except KeyError:
-        raise TypeError(f"No type defined for field type '{field_type}'")
+        import django_filters
+    except ModuleNotFoundError:
+        pass
+    else:
+        filterset_class = model
+        if isinstance(filterset_class, django_filters.filterset.FilterSetMetaclass):
+            from .legacy.filters import filter as filters_filter
+            return filters_filter(filterset_class, name)
+
+    def wrapper(cls):
+        is_filter = lookups and 'lookups' or True
+        type_ = process_type(cls, model, is_input=True, partial=True, is_filter=is_filter)
+        return type_
+    return wrapper
+
+def build_filter_kwargs(filters):
+    filter_kwargs = {}
+    filter_methods = []
+    django_model = getattr(filters, '_django_model', None)
+    for field in utils.fields(filters):
+        field_name = field.name
+        field_value = getattr(filters, field_name)
+
+        if is_unset(field_value):
+            continue
+
+        filter_method = getattr(field, '_filter', None)
+        if filter_method:
+            filter_methods.append((filter_method, filters))
+            continue
+
+        if django_model:
+            if field_name not in django_model._meta._forward_fields_map:
+                continue
+
+        if field_name in lookup_name_conversion_map:
+            field_name = lookup_name_conversion_map[field_name]
+        if utils.is_strawberry_type(field_value):
+            subfield_filter_kwargs, subfield_filter_methods = \
+                build_filter_kwargs(field_value)
+            for subfield_name, subfield_value in subfield_filter_kwargs.items():
+                filter_kwargs[f'{field_name}__{subfield_name}'] = subfield_value
+            filter_methods.extend(subfield_filter_methods)
+        else:
+            filter_kwargs[field_name] = field_value
+    return filter_kwargs, filter_methods
 
 
-@assert_django_filters_installed
-def set_field_type(field_type, to_type):
-    if type(field_type) != type:
-        raise TypeError(
-            f"expected 'type', received {type(field_type)}. Maybe you forgot to call type()?"
-        )
-    filter_field_type_map[field_type] = to_type
-
-
-@assert_django_filters_installed
-def apply(filter_instance, queryset):
-    if is_unset(filter_instance) or not filter_instance:
+def apply(filters, queryset):
+    if is_unset(filters) or filters is None:
         return queryset
 
-    data = {}
-    for field_name in filter_instance.filterset_class.get_fields():
-        value = getattr(filter_instance, field_name, None)
-        if not is_unset(value):
-            data[field_name] = value
+    if hasattr(filters, 'filterset_class'):
+        from .legacy.filters import apply as filters_apply
+        return filters_apply(filters, queryset)
 
-    filterset = filter_instance.filterset_class(
-        data=data,
-        queryset=queryset,
-    )
+    filter_method = getattr(filters, 'filter', None)
+    if filter_method:
+        return filter_method(queryset)
 
-    if not filterset.is_valid():
-        raise InvalidFilterError(filterset.errors)
-
-    return filterset.qs
-
-
-@assert_django_filters_installed
-def filter(filterset_class: Type[django_filters.FilterSet], name=None):
-    if not isinstance(filterset_class, django_filters.filterset.FilterSetMetaclass):
-        raise TypeError(
-            "strawberry_django.filter expects a class that inherits django_filters.FilterSet, received %s",
-            type(filterset_class),
-        )
-
-    filters = filterset_class.get_filters()
-    name = name or filterset_class.__name__
-    cls = type(name, (), {"__annotations__": {}, "filterset_class": filterset_class})
-
-    for field_name in filterset_class.get_filters().keys():
-        filter_field = filters[field_name]
-        field_type = get_field_type(type(filter_field))
-        cls.__annotations__[field_name] = field_type
-        setattr(cls, field_name, UNSET)
-
-    return strawberry.input(cls)
+    filter_kwargs, filter_methods = build_filter_kwargs(filters)
+    queryset = queryset.filter(**filter_kwargs)
+    for filter_method, filter_arg in filter_methods:
+        queryset = filter_method(self=filter_arg, queryset=queryset)
+    return queryset

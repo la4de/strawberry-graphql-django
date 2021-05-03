@@ -77,7 +77,7 @@ def test_should_raise_filterset_error_for_invalid_input():
     filter_instance = Filter(**{
         "date_time": "2021-25-29T00:09:00",
     })
-    with pytest.raises(strawberry_django.filters.InvalidFilterError):
+    with pytest.raises(strawberry_django.legacy.filters.InvalidFilterError):
         strawberry_django.filters.apply(filter_instance, qs)
 
 
@@ -95,12 +95,3 @@ def test_lookup_definition_in_filterset_meta():
         "char__iexact": "Some text",
     })
     strawberry_django.filters.apply(filter_instance, qs)
-
-
-def test_should_raise_when_not_extending_filterset():
-    with pytest.raises(TypeError):
-        @strawberry_django.filter
-        class Filter:
-            class Meta:
-                model = FilterModel
-                exclude = ()
