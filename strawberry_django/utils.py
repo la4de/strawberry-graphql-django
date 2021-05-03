@@ -4,6 +4,8 @@ from django.db import models
 import asyncio
 import warnings
 
+from .fields.utils import fields
+
 
 def is_async():
     # django uses the same method to detect async operation

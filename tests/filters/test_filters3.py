@@ -5,7 +5,7 @@ import strawberry
 from strawberry_django import FilterLookup
 from ..types import Fruit
 from .. import utils, models
-from typing import List
+from typing import Any, List
 
 @strawberry_django.filter3(models.Color, lookups=True)
 class ColorFilter:
@@ -17,17 +17,24 @@ class FruitFilter:
     id: auto
     name: auto
     color: ColorFilter
-    search: str
+
+    @strawberry_django.filters3.field
+    def search(self, queryset) -> str:
+        return queryset.filter(name__icontains=self.search)
+
+@strawberry_django.filter3(models.Fruit)
+class FruitSearchFilter:
+    name: auto
 
     def filter(self, queryset):
-        if self.search:
-            queryset = queryset.filter(name__icontains=self.search)
+        if self.name:
+            queryset = queryset.filter(name__icontains=self.name)
         return queryset
 
 @strawberry.type
 class Query:
     fruits: List[Fruit] = strawberry_django.field(filters=FruitFilter)
-    fruits_method: List[Fruit] = strawberry_django.field(filters=FruitFilter)
+    fruit_search: List[Fruit] = strawberry_django.field(filters=FruitSearchFilter)
 
 @pytest.fixture
 def query():
@@ -81,8 +88,17 @@ def test_relationship(query, fruits):
     ]
 
 
-def test_filter_method(query, fruits):
+def test_field_filter_method(query, fruits):
     result = query('{ fruits(filters: { search: "berry" }) { id name } }')
+    assert not result.errors
+    assert result.data['fruits'] == [
+        {'id': '1', 'name': 'strawberry'},
+        {'id': '2', 'name': 'raspberry'},
+    ]
+
+
+def test_type_filter_method(query, fruits):
+    result = query('{ fruits: fruitSearch(filters: { name: "berry" }) { id name } }')
     assert not result.errors
     assert result.data['fruits'] == [
         {'id': '1', 'name': 'strawberry'},

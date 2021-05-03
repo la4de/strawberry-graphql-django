@@ -2,6 +2,7 @@ from strawberry.arguments import UNSET, is_unset
 from typing import Generic, List, Optional, TypeVar, Union
 import dataclasses
 import strawberry
+from strawberry.field import StrawberryField
 
 from . import utils
 from .fields import is_auto
@@ -45,6 +46,23 @@ lookup_name_conversion_map = {
     'i_regex': 'iregex',
 }
 
+class StrawberryDjangoFilterField(StrawberryField):
+    def __call__(self, filter_):
+        self._filter = filter_
+        self.type = filter_.__annotations__['return']
+        return self
+
+
+def field(filter=None, *, name=None, **kwargs):
+    field_ = StrawberryDjangoFilterField(
+        python_name=None,
+        graphql_name=name,
+        type_=None,
+        **kwargs)
+    if filter:
+        return field_(filter)
+    return field_
+
 def filter(model, *, lookups=False):
     def wrapper(cls):
         is_filter = lookups and 'lookups' or True
@@ -53,10 +71,19 @@ def filter(model, *, lookups=False):
     return wrapper
 
 def build_filter_kwargs(filters):
-    kwargs = {}
+    filter_kwargs = {}
+    filter_methods = []
     django_model = getattr(filters, '_django_model', None)
-    for field_name, field_value in vars(filters).items():
+    for field in utils.fields(filters):
+        field_name = field.name
+        field_value = getattr(filters, field_name)
+
         if is_unset(field_value):
+            continue
+
+        filter_method = getattr(field, '_filter', None)
+        if filter_method:
+            filter_methods.append((filter_method, filters))
             continue
 
         if django_model:
@@ -66,16 +93,23 @@ def build_filter_kwargs(filters):
         if field_name in lookup_name_conversion_map:
             field_name = lookup_name_conversion_map[field_name]
         if utils.is_strawberry_type(field_value):
-            for subfield_name, subfield_value in build_filter_kwargs(field_value).items():
-                kwargs[f'{field_name}__{subfield_name}'] = subfield_value
+            subfield_filter_kwargs, subfield_filter_methods = \
+                build_filter_kwargs(field_value)
+            for subfield_name, subfield_value in subfield_filter_kwargs.items():
+                filter_kwargs[f'{field_name}__{subfield_name}'] = subfield_value
+            filter_methods.extend(subfield_filter_methods)
         else:
-            kwargs[field_name] = field_value
-    return kwargs
+            filter_kwargs[field_name] = field_value
+    return filter_kwargs, filter_methods
+
 
 def filters_apply(filters, queryset):
-    kwargs = build_filter_kwargs(filters)
-    queryset = queryset.filter(**kwargs)
     filter_method = getattr(filters, 'filter', None)
     if filter_method:
-        queryset = filter_method(queryset)
+        return filter_method(queryset)
+
+    filter_kwargs, filter_methods = build_filter_kwargs(filters)
+    queryset = queryset.filter(**filter_kwargs)
+    for filter_method, filter_arg in filter_methods:
+        queryset = filter_method(self=filter_arg, queryset=queryset)
     return queryset

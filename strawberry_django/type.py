@@ -1,3 +1,4 @@
+import dataclasses
 import strawberry
 from strawberry.arguments import UNSET, is_unset
 from .fields.utils import iter_class_fields
@@ -85,7 +86,8 @@ def get_fields(cls, model, is_input, partial, is_filter):
                 django_name=django_name,
                 type_=field_type
             )
-            if is_input:
+        if is_input:
+            if field.default is dataclasses.MISSING:
                 #TODO: could strawberry support UNSET?
                 field.default = UNSET
                 field.default_value = UNSET
