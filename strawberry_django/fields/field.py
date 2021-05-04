@@ -61,8 +61,33 @@ class StrawberryDjangoFieldFilters:
 
         return queryset
 
+class StrawberryDjangoFieldOrdering:
+    def __init__(self, order_by=None, *args, **kwargs):
+        self.order_by = order_by
+        super().__init__(*args, **kwargs)
+
+    @property
+    def arguments(self) -> List[StrawberryArgument]:
+        arguments = super().arguments
+
+        if not self.base_resolver:
+            if self.order_by:
+                arguments += [
+                    argument('order_by', self.order_by, is_optional=True)
+                ]
+
+        return arguments
+
+    def apply_order_by(self, kwargs, source, info, queryset):
+        order_by = kwargs.get('order_by', UNSET)
+        if not is_unset(order_by):
+            from ..ordering import apply as ordering_apply
+            queryset = ordering_apply(order_by, queryset)
+        return queryset
+
 
 class StrawberryDjangoField(
+        StrawberryDjangoFieldOrdering,
         StrawberryDjangoFieldFilters,
         StrawberryField):
 
@@ -100,6 +125,7 @@ class StrawberryDjangoField(
 
         if isinstance(result, models.QuerySet):
             result = self.apply_filter(kwargs, source, info, result)
+            result = self.apply_order_by(kwargs, source, info, result)
 
             if not self.is_list:
                 result = result.get()

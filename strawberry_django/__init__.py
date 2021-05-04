@@ -1,4 +1,5 @@
 from . import filters
+from . import ordering
 from .fields import auto, field, is_auto
 from .fields.types import (
     DjangoFileType, DjangoImageType, DjangoModelType,

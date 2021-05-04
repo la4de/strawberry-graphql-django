@@ -33,10 +33,8 @@ def is_field_type_inherited_from_different_object_type(cls, field_name, is_input
     for c in reversed(cls.__mro__):
         if field_name not in c.__dict__.get('_orig_annotations', {}):
             continue
-        print('is_input', c._type_definition.is_input)
         if c._type_definition.is_input != is_input:
             return True
-        print('is_filter', c._is_filter)
         if c._is_filter != is_filter:
             return True
         return False
