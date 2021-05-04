@@ -8,8 +8,9 @@ from .. import models, utils
 
 from strawberry_django.filters import DjangoModelFilterInput
 
+
 def test_filter():
-    @strawberry_django.filter(models.Fruit)
+    @strawberry_django.filters.filter(models.Fruit)
     class Filter:
         id: auto
         name: auto
@@ -24,7 +25,7 @@ def test_filter():
     ]
 
 def test_lookups():
-    @strawberry_django.filter(models.Fruit, lookups=True)
+    @strawberry_django.filters.filter(models.Fruit, lookups=True)
     class Filter:
         id: auto
         name: auto
@@ -38,6 +39,7 @@ def test_lookups():
         ('types', 'DjangoModelFilterInput'),
     ]
 
+
 def test_inherit(testtype):
     @testtype(models.Fruit)
     class Base:
@@ -46,7 +48,7 @@ def test_inherit(testtype):
         color: auto
         types: auto
 
-    @strawberry_django.filter(models.Fruit)
+    @strawberry_django.filters.filter(models.Fruit)
     class Filter(Base):
         pass
 
@@ -55,4 +57,36 @@ def test_inherit(testtype):
         ('name', str),
         ('color', DjangoModelFilterInput),
         ('types', DjangoModelFilterInput),
+    ]
+
+
+def test_relationship():
+    @strawberry_django.filters.filter(models.Color)
+    class ColorFilter:
+        name: auto
+
+    @strawberry_django.filters.filter(models.Fruit)
+    class Filter:
+        color: ColorFilter
+
+    assert [(f.name, f.type) for f in fields(Filter)] == [
+        ('color', ColorFilter),
+    ]
+
+
+def test_relationship_with_inheritance():
+    @strawberry_django.filters.filter(models.Color)
+    class ColorFilter:
+        name: auto
+
+    @strawberry_django.type(models.Fruit)
+    class Base:
+        color: auto
+
+    @strawberry_django.filters.filter(models.Fruit)
+    class Filter(Base):
+        color: ColorFilter
+
+    assert [(f.name, f.type) for f in fields(Filter)] == [
+        ('color', ColorFilter),
     ]

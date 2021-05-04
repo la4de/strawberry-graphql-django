@@ -66,7 +66,8 @@ def field(filter=None, *, name=None, **kwargs):
         return field_(filter)
     return field_
 
-def filter(model, *, lookups=False, name=None):
+
+def filter(model, *, name=None, lookups=False):
     try:
         import django_filters
     except ModuleNotFoundError:
@@ -74,6 +75,8 @@ def filter(model, *, lookups=False, name=None):
     else:
         filterset_class = model
         if isinstance(filterset_class, django_filters.filterset.FilterSetMetaclass):
+            utils.deprecated("support for 'django-filters' is deprecated and"
+                " will removed in v0.3", stacklevel=2)
             from .legacy.filters import filter as filters_filter
             return filters_filter(filterset_class, name)
 
@@ -82,6 +85,11 @@ def filter(model, *, lookups=False, name=None):
         type_ = process_type(cls, model, is_input=True, partial=True, is_filter=is_filter)
         return type_
     return wrapper
+
+def filter_deprecated(model, *, name=None, lookups=False):
+    utils.deprecated("'strawberry_django.filter' is deprecated,"
+        " use 'strawberry_django.filters.filter' instead", stacklevel=2)
+    return filter(model, name=name, lookups=lookups)
 
 def build_filter_kwargs(filters):
     filter_kwargs = {}
@@ -121,6 +129,8 @@ def apply(filters, queryset):
         return queryset
 
     if hasattr(filters, 'filterset_class'):
+        utils.deprecated("support for 'django-filters' is deprecated and"
+            " will removed in v0.3", stacklevel=2)
         from .legacy.filters import apply as filters_apply
         return filters_apply(filters, queryset)
 

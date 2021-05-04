@@ -1,13 +1,16 @@
 import dataclasses
-import strawberry
-from strawberry.arguments import UNSET, is_unset
-from .fields.utils import iter_class_fields
-from .fields.types import auto, is_auto, is_optional, resolve_model_field_type, resolve_model_field_name
-from django.db import models
-from typing import Optional
 import django
+import strawberry
+from django.db import models
+from strawberry.arguments import UNSET, is_unset
+from typing import Optional
 
 from .fields.field import StrawberryField, StrawberryDjangoField
+from .fields.types import (
+    auto, is_auto, is_optional,
+    get_model_field, resolve_model_field_type, resolve_model_field_name,
+)
+from .fields.utils import iter_class_fields
 from . import utils
 
 _type = type
@@ -16,7 +19,7 @@ _type = type
 def resolve_django_name(model, field_name, field_value, is_input, is_filter):
     django_name = getattr(field_value, 'django_name', field_name)
     try:
-        model_field = model._meta.get_field(django_name)
+        model_field = get_model_field(model, django_name)
         django_name = resolve_model_field_name(model_field, is_input, is_filter)
     except django.core.exceptions.FieldDoesNotExist:
         pass
@@ -24,17 +27,19 @@ def resolve_django_name(model, field_name, field_value, is_input, is_filter):
 
 
 def is_field_type_inherited_from_different_object_type(cls, field_name, is_input, is_filter):
+    if field_name in cls.__dict__.get('__annotations__', {}):
+        return False
     # TODO: optimize and simplify
     for c in reversed(cls.__mro__):
-        annotations = {}
-        if '_orig_annotations' in c.__dict__:
-            annotations = c._orig_annotations
-        if field_name in annotations:
-            if c._type_definition.is_input != is_input:
-                return True
-            if c._is_filter != is_filter:
-                return True
-            return False
+        if field_name not in c.__dict__.get('_orig_annotations', {}):
+            continue
+        print('is_input', c._type_definition.is_input)
+        if c._type_definition.is_input != is_input:
+            return True
+        print('is_filter', c._is_filter)
+        if c._is_filter != is_filter:
+            return True
+        return False
     return False
 
 
@@ -42,21 +47,19 @@ def resolve_field_type(cls, model, field_name, django_name, field_type, is_input
     model_field = None
 
     try:
-        model_field = model._meta.get_field(django_name)
+        model_field = get_model_field(model, django_name)
     except django.core.exceptions.FieldDoesNotExist:
         if is_auto(field_type):
             raise
 
-    if model_field and model_field.is_relation:
+    is_relation = getattr(model_field, 'is_relation', False)
+
+    if is_relation:
         if is_field_type_inherited_from_different_object_type(cls, field_name, is_input, is_filter):
             field_type = auto
-
-    if is_input:
-        if model_field and model_field.is_relation:
-            if is_filter:
-                if is_auto(field_type):
-                    from . import filters
-                    field_type = filters.DjangoModelFilterInput
+        if is_filter and is_auto(field_type):
+            from . import filters
+            field_type = filters.DjangoModelFilterInput
 
     if is_auto(field_type):
         field_type = resolve_model_field_type(model_field, is_input)

@@ -1,8 +1,7 @@
 import pytest
 import django_filters
 import strawberry_django
-from strawberry_django.filters import DummyDjangoFilters
-
+from strawberry_django.legacy.filters import DummyDjangoFilters
 
 @pytest.fixture
 def django_filters_mock(mocker):

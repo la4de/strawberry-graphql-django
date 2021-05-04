@@ -36,7 +36,8 @@ class FieldTypesModel(models.Model):
             related_name='related_foreign_key', on_delete=models.CASCADE)
     one_to_one = models.OneToOneField('FieldTypesModel', blank=True,
             related_name='related_one_to_one', on_delete=models.CASCADE)
-    many_to_many = models.ManyToManyField('FieldTypesModel')
+    many_to_many = models.ManyToManyField('FieldTypesModel',
+            related_name='related_many_to_many')
 
 
 def test_field_types():
@@ -66,7 +67,7 @@ def test_field_types():
         url: auto
         uuid: auto
 
-    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type) for f in fields(Type)] == [
         ('id', strawberry.ID),
         ('boolean', bool),
         ('char', str),
@@ -116,7 +117,7 @@ def test_type_extension():
         def my_field() -> int:
             return 0
 
-    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type) for f in fields(Type)] == [
         ('char', str),
         ('text', bytes),
         ('my_field', int),
@@ -139,7 +140,7 @@ def test_override_field_type():
     class Type:
         char: EnumType
 
-    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type) for f in fields(Type)] == [
         ('char', EnumType),
     ]
 
@@ -149,28 +150,50 @@ def test_override_field_default_value():
     class Type:
         char: str = 'my value'
 
-    assert [(f.name, f.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type) for f in fields(Type)] == [
         ('char', str),
     ]
 
     assert Type().char == 'my value'
 
 
+def test_related_fields():
+    @strawberry_django.type(FieldTypesModel)
+    class Type:
+        foreign_key: auto
+        one_to_one: auto
+        many_to_many: auto
+        related_foreign_key: auto
+        related_one_to_one: auto
+        related_many_to_many: auto
+
+    assert [(f.name, f.type or f.child.type, f.is_list) for f in fields(Type)] == [
+        ('foreign_key', strawberry_django.DjangoModelType, False),
+        ('one_to_one', strawberry_django.DjangoModelType, False),
+        ('many_to_many', strawberry_django.DjangoModelType, True),
+        ('related_foreign_key', strawberry_django.DjangoModelType, True),
+        ('related_one_to_one', strawberry_django.DjangoModelType, False),
+        ('related_many_to_many', strawberry_django.DjangoModelType, True),
+    ]
+
+
 def test_related_input_fields():
     @strawberry_django.input(FieldTypesModel)
     class Input:
         foreign_key: auto
-        related_foreign_key: auto
         one_to_one: auto
-        related_one_to_one: auto
         many_to_many: auto
+        related_foreign_key: auto
+        related_one_to_one: auto
+        related_many_to_many: auto
 
-    assert [(f.name, f.type, f.is_optional) for f in utils.type_fields(Input)] == [
+    assert [(f.name, f.type, f.is_optional) for f in fields(Input)] == [
         ('foreign_key', strawberry_django.OneToManyInput, True),
-        ('related_foreign_key', strawberry_django.ManyToOneInput, True),
         ('one_to_one', strawberry_django.OneToOneInput, True),
-        ('related_one_to_one', strawberry_django.OneToOneInput, True),
         ('many_to_many', strawberry_django.ManyToManyInput, True),
+        ('related_foreign_key', strawberry_django.ManyToOneInput, True),
+        ('related_one_to_one', strawberry_django.OneToOneInput, True),
+        ('related_many_to_many', strawberry_django.ManyToManyInput, True),
     ]
 
 
@@ -186,7 +209,7 @@ def test_inherit_type():
     class Type(Parent):
         many_to_many: List['Type']
 
-    assert [(f.name, f.type or f.child.type) for f in utils.type_fields(Type)] == [
+    assert [(f.name, f.type or f.child.type) for f in fields(Type)] == [
         ('char', str),
         ('one_to_one', Type),
         ('many_to_many', Type),
@@ -207,7 +230,7 @@ def test_inherit_input():
         id: auto
         my_data: str
 
-    assert [(f.name, f.type) for f in utils.type_fields(Input)] == [
+    assert [(f.name, f.type) for f in fields(Input)] == [
         ('char', str),
         ('one_to_one', strawberry_django.OneToOneInput),
         ('many_to_many', strawberry_django.ManyToManyInput),
@@ -226,7 +249,7 @@ def test_type_from_type():
         many_to_many: List['Type']
 
     FruitInput = strawberry_django.types.from_type(Type, is_input=True)
-    assert [(f.name, f.type) for f in utils.type_fields(FruitInput)] == [
+    assert [(f.name, f.type) for f in fields(FruitInput)] == [
         ('char', str),
         ('one_to_one', strawberry_django.OneToOneInput),
         ('many_to_many', strawberry_django.ManyToManyInput),

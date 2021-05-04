@@ -1,18 +1,18 @@
 import pytest
+import strawberry
 import strawberry_django
 from strawberry_django import auto
-import strawberry
-from strawberry_django import FilterLookup
-from ..types import Fruit
-from .. import utils, models
 from typing import Any, List
 
-@strawberry_django.filter(models.Color, lookups=True)
+from tests.types import Fruit
+from tests import utils, models
+
+@strawberry_django.filters.filter(models.Color, lookups=True)
 class ColorFilter:
     id: auto
     name: auto
 
-@strawberry_django.filter(models.Fruit, lookups=True)
+@strawberry_django.filters.filter(models.Fruit, lookups=True)
 class FruitFilter:
     id: auto
     name: auto
@@ -22,7 +22,7 @@ class FruitFilter:
     def search(self, queryset) -> str:
         return queryset.filter(name__icontains=self.search)
 
-@strawberry_django.filter(models.Fruit)
+@strawberry_django.filters.filter(models.Fruit)
 class FruitSearchFilter:
     name: auto
 

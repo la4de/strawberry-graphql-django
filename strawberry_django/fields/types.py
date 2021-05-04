@@ -1,9 +1,10 @@
+import datetime, decimal, uuid
+import django
+import strawberry
 from django.db.models import fields
 from django.db.models.fields.reverse_related import ForeignObjectRel, ManyToOneRel
-from typing import List, Optional
-import strawberry
 from strawberry.arguments import UNSET
-import datetime, decimal, uuid
+from typing import List, Optional
 
 class auto:
     pass
@@ -60,9 +61,7 @@ field_type_map = {
     fields.files.ImageField: DjangoImageType,
     fields.GenericIPAddressField: str,
     fields.IntegerField: int,
-    fields.json.JSONField: NotImplemented,
     fields.NullBooleanField: Optional[bool],
-    fields.PositiveBigIntegerField: int,
     fields.PositiveIntegerField: int,
     fields.PositiveSmallIntegerField: int,
     fields.SlugField: str,
@@ -79,6 +78,12 @@ field_type_map = {
     fields.related.ManyToManyField: List[DjangoModelType],
     fields.reverse_related.ManyToManyRel: List[DjangoModelType],
 }
+
+if django.VERSION >= (3, 1):
+    field_type_map.update({
+        fields.json.JSONField: NotImplemented,
+        fields.PositiveBigIntegerField: int,
+    })
 
 input_field_type_map = {
     fields.files.FileField: NotImplemented,
@@ -110,6 +115,17 @@ def resolve_model_field_name(model_field, is_input, is_filter):
         return model_field.attname
     else:
         return model_field.name
+
+
+def get_model_field(model, field_name):
+    try:
+        return model._meta.get_field(field_name)
+    except django.core.exceptions.FieldDoesNotExist:
+        # auth.models.Group has 'User_models+' name
+        for field in model._meta.get_fields():
+            if field_name == getattr(field, 'related_name', field.name):
+                return field
+        raise
 
 
 def is_auto(type_):

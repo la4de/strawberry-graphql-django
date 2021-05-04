@@ -24,7 +24,13 @@ def django_resolver(resolver):
 
     return wrapper
 
-@sync_to_async(thread_sensitive=True)
+
+def sync_to_async_thread_sensitive(func):
+    # django 3.0 defaults to thread_sensitive=False
+    return sync_to_async(func, thread_sensitive=True)
+
+
+@sync_to_async_thread_sensitive
 def call_sync_resolver(resolver, *args, **kwargs):
     """This function executes resolver function in sync context and ensures
     that querysets are executed.
