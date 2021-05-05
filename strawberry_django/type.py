@@ -31,8 +31,10 @@ def is_field_type_inherited_from_different_object_type(cls, field_name, is_input
         return False
     # TODO: optimize and simplify
     for c in reversed(cls.__mro__):
-        if field_name not in c.__dict__.get('_orig_annotations', {}):
+        if field_name not in c.__dict__.get('__annotations__', {}):
             continue
+        if not utils.is_strawberry_type(c):
+            return False
         if c._type_definition.is_input != is_input:
             return True
         if c._is_filter != is_filter:
@@ -103,8 +105,7 @@ def process_type(cls, model, **kwargs):
     fields = get_fields(cls, model, is_input, partial, is_filter)
 
     # store original annotations for further use
-    if '__annotations__' in cls.__dict__:
-        cls._orig_annotations = cls.__annotations__
+    annotations = cls.__dict__.get('__annotations__', {})
 
     # update annotations and fields
     cls.__annotations__ = {}
@@ -112,12 +113,15 @@ def process_type(cls, model, **kwargs):
         cls.__annotations__[field_name] = field_type
         setattr(cls, field_name, field)
 
+    strawberry.type(cls, **kwargs)
+
     #cls._django_type_definition(model)
+    cls.__annotations__ = annotations
     cls._django_model = model
     cls._partial = partial
     cls._is_filter = bool(is_filter)
 
-    return strawberry.type(cls, **kwargs)
+    return cls
     
 
 def type(model, **kwargs):

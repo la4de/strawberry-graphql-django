@@ -5,9 +5,7 @@ from .types import auto
 def get_annotations(cls):
     annotations = {}
     for c in reversed(cls.__mro__):
-        if '_orig_annotations' in c.__dict__:
-            annotations.update(c._orig_annotations)
-        elif '__annotations__' in c.__dict__:
+        if '__annotations__' in c.__dict__:
             annotations.update(c.__annotations__)
     return annotations
 
