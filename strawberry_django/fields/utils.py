@@ -17,6 +17,14 @@ def iter_class_fields(cls):
     for field_name in field_names:
         field_type = None
         field_value = getattr(cls, field_name, UNSET)
+        if is_unset(field_value):
+            #TODO: clean
+            if hasattr(cls, '__dataclass_fields__'):
+                field = cls.__dataclass_fields__.get(field_name, None)
+                if field:
+                    import dataclasses
+                    default_value = type(field) is not dataclasses.Field and field or UNSET
+                    field_value = getattr(field, 'origin_value', default_value)
         if isinstance(field_value, StrawberryField):
             field_type = field_value.type
         if field_type is None:

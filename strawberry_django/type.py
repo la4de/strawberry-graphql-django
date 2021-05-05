@@ -94,6 +94,7 @@ def get_fields(cls, model, is_input, partial, is_filter):
                 #TODO: could strawberry support UNSET?
                 field.default = UNSET
                 field.default_value = UNSET
+        field.origin_value = field_value
         fields.append((field_name, field_type, field))
     return fields
 

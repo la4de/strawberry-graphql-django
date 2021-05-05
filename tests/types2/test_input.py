@@ -66,6 +66,7 @@ def test_relationship_inherit(testtype):
         related_one_to_one: auto
         many_to_many: auto
         related_many_to_many: auto
+        another_name: auto = strawberry_django.field(field_name='foreign_key')
 
     @strawberry_django.input(TypeModel)
     class Input(Base):
@@ -78,4 +79,5 @@ def test_relationship_inherit(testtype):
         ('related_one_to_one', strawberry_django.OneToOneInput),
         ('many_to_many', strawberry_django.ManyToManyInput),
         ('related_many_to_many', strawberry_django.ManyToManyInput),
+        ('another_name', strawberry_django.OneToManyInput),
     ]
