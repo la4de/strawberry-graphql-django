@@ -2,7 +2,7 @@ import strawberry
 import typing
 from .types import get_model_fields, update_fields
 from .utils import deprecated
-from ..fields import auto
+from ..fields.types import is_auto
 
 _type = type
 
@@ -26,7 +26,7 @@ def type(model, *, fields=None, types=None, **kwargs):
             if not hasattr(cls, field_name):
                 setattr(cls, field_name, field_value)
         for field_name, field_type in cls.__annotations__.items():
-            if field_type is auto:
+            if is_auto(field_type):
                 raise TypeError(f"Field '{field_name}' has invalid type."
                     " Type 'auto' cannot be use together with"
                     " 'fields' parameter."

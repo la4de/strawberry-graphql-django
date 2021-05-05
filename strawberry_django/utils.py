@@ -4,8 +4,6 @@ from django.db import models
 import asyncio
 import warnings
 
-from .fields.utils import fields
-
 
 def is_async():
     # django uses the same method to detect async operation
@@ -41,3 +39,6 @@ def type_fields(type_):
 
 def type_django_model(type_):
     return getattr(type_, '_django_model', None)
+
+def fields(cls):
+    return cls._type_definition.fields

@@ -1,12 +1,13 @@
-from strawberry.arguments import UNSET, is_unset
-from typing import Generic, List, Optional, TypeVar, Union
 import dataclasses
 import strawberry
+from typing import Generic, List, Optional, TypeVar, Union
 from strawberry.field import StrawberryField
+from strawberry.arguments import UNSET, is_unset, StrawberryArgument
+from typing import List
 
 from . import utils
-from .fields import is_auto
-from .type import process_type
+from .arguments import argument
+from .fields.types import is_auto
 
 # for backward compatibility
 from .legacy.filters import get_field_type, set_field_type
@@ -82,6 +83,7 @@ def filter(model, *, name=None, lookups=False):
 
     def wrapper(cls):
         is_filter = lookups and 'lookups' or True
+        from .type import process_type
         type_ = process_type(cls, model, is_input=True, partial=True, is_filter=is_filter)
         return type_
     return wrapper
@@ -124,7 +126,9 @@ def build_filter_kwargs(filters):
     return filter_kwargs, filter_methods
 
 
-def apply(filters, queryset):
+def apply(filters, queryset, pk=UNSET):
+    if not is_unset(pk):
+        queryset = queryset.filter(pk=pk)
     if is_unset(filters) or filters is None:
         return queryset
 
@@ -143,3 +147,27 @@ def apply(filters, queryset):
     for filter_method, filter_arg in filter_methods:
         queryset = filter_method(self=filter_arg, queryset=queryset)
     return queryset
+
+
+class StrawberryDjangoFieldFilters:
+    def __init__(self, filters=None, **kwargs):
+        self.filters = filters
+        super().__init__(**kwargs)
+
+    @property
+    def arguments(self) -> List[StrawberryArgument]:
+        arguments = []
+        if not self.base_resolver:
+            if self.django_model and not self.is_list:
+                arguments.append(
+                    argument('pk', strawberry.ID)
+                )
+            if self.filters:
+                arguments.append(
+                    argument('filters', self.filters)
+                )
+        return super().arguments + arguments
+
+    def get_queryset(self, queryset, info, pk=UNSET, filters=UNSET, **kwargs):
+        queryset = apply(filters, queryset, pk)
+        return super().get_queryset(queryset, info, **kwargs)

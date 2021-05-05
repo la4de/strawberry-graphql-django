@@ -1,99 +1,29 @@
 from django.db import models
 from strawberry.arguments import StrawberryArgument, UNSET, convert_arguments, is_unset
 from strawberry.field import StrawberryField
-from strawberry.types.types import undefined
 import strawberry
 from .. import utils
 from ..resolvers import django_resolver
+from ..filters import StrawberryDjangoFieldFilters
+from ..ordering import StrawberryDjangoFieldOrdering
 
 from typing import List, Optional
 
-def argument(name, type_, is_optional=False, default_value=undefined):
-    return StrawberryArgument(
-        default_value=default_value,
-        description=None,
-        graphql_name=None,
-        is_optional=is_optional,
-        origin=None,
-        python_name=name,
-        type_=type_,
-    )
 
 
-class StrawberryDjangoFieldFilters:
-    def __init__(self, filters=None, *args, **kwargs):
-        self.filters = filters
-        super().__init__(*args, **kwargs)
-
-    @property
-    def arguments(self) -> List[StrawberryArgument]:
-        arguments = super().arguments
-
-        if not self.base_resolver:
-            if not self.is_list and self.django_model:
-                arguments += [
-                    argument('pk', strawberry.ID, is_optional=True)
-                ]
-
-            django_filters = self.django_filters
-            if django_filters:
-                arguments += [
-                    argument('filters', django_filters, is_optional=True)
-                ]
-
-        return arguments
-
-    @property
-    def django_filters(self):
-        if self.base_resolver:
-            return
-        return self.filters
-
-    def apply_filter(self, kwargs, source, info, queryset):
-        pk = kwargs.get('pk', UNSET)
-        if not is_unset(pk):
-            queryset = queryset.filter(pk=pk)
-
-        filters = kwargs.get('filters', UNSET)
-        if not is_unset(filters):
-            from ..filters import apply as filters_apply
-            queryset = filters_apply(filters, queryset)
-
+class StrawberryDjangoFieldBase:
+    def get_queryset(self, queryset, info, **kwargs):
         return queryset
-
-class StrawberryDjangoFieldOrdering:
-    def __init__(self, order_by=None, *args, **kwargs):
-        self.order_by = order_by
-        super().__init__(*args, **kwargs)
-
-    @property
-    def arguments(self) -> List[StrawberryArgument]:
-        arguments = super().arguments
-
-        if not self.base_resolver:
-            if self.order_by:
-                arguments += [
-                    argument('order_by', self.order_by, is_optional=True)
-                ]
-
-        return arguments
-
-    def apply_order_by(self, kwargs, source, info, queryset):
-        order_by = kwargs.get('order_by', UNSET)
-        if not is_unset(order_by):
-            from ..ordering import apply as ordering_apply
-            queryset = ordering_apply(order_by, queryset)
-        return queryset
-
 
 class StrawberryDjangoField(
         StrawberryDjangoFieldOrdering,
         StrawberryDjangoFieldFilters,
+        StrawberryDjangoFieldBase,
         StrawberryField):
 
     def __init__(self, django_name=None, graphql_name=None, python_name=None, **kwargs):
-        super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
         self.django_name = django_name
+        super().__init__(graphql_name=graphql_name, python_name=python_name, **kwargs)
 
     @property
     def django_model(self):
@@ -124,8 +54,7 @@ class StrawberryDjangoField(
                 result = result.all()
 
         if isinstance(result, models.QuerySet):
-            result = self.apply_filter(kwargs, source, info, result)
-            result = self.apply_order_by(kwargs, source, info, result)
+            result = self.get_queryset(queryset=result, info=info, **kwargs)
 
             if not self.is_list:
                 result = result.get()

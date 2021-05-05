@@ -32,7 +32,3 @@ def iter_class_fields(cls):
             continue
         field_type = field_value.type or auto
         yield field_name, field_type, field_value
-
-
-def fields(cls):
-    return cls._type_definition.fields

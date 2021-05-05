@@ -1,11 +1,12 @@
 from . import filters
 from . import ordering
-from .fields import auto, field, is_auto
+from .fields.field import field
 from .fields.types import (
+    auto, is_auto,
     DjangoFileType, DjangoImageType, DjangoModelType,
     OneToOneInput, OneToManyInput, ManyToOneInput, ManyToManyInput,
 )
-from .fields.utils import fields
+from .utils import fields
 from .filters import filter_deprecated as filter
 from .mutations.mutations import mutations
 from .resolvers import django_resolver

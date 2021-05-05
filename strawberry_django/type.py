@@ -115,7 +115,6 @@ def process_type(cls, model, **kwargs):
 
     strawberry.type(cls, **kwargs)
 
-    #cls._django_type_definition(model)
     cls.__annotations__ = annotations
     cls._django_model = model
     cls._partial = partial

@@ -1,8 +1,11 @@
 import enum
 import strawberry
 import strawberry_django
+from strawberry.arguments import UNSET, is_unset, StrawberryArgument
+from typing import Optional, List
+
+from .arguments import argument
 from . import utils
-from typing import Optional
 
 
 @strawberry.enum
@@ -39,7 +42,29 @@ def order_by(model):
 
 
 def apply(order_by, queryset):
+    if utils.is_unset(order_by) or order_by is None:
+        return queryset
     args = generate_order_by_args(order_by)
     if not args:
         return queryset
     return queryset.order_by(*args)
+
+
+class StrawberryDjangoFieldOrdering:
+    def __init__(self, order_by=None, **kwargs):
+        self.order_by = order_by
+        super().__init__(**kwargs)
+
+    @property
+    def arguments(self) -> List[StrawberryArgument]:
+        arguments = []
+        if not self.base_resolver:
+            if self.order_by:
+                arguments.append(
+                    argument('order_by', self.order_by)
+                )
+        return super().arguments + arguments
+
+    def get_queryset(self, queryset, info, order_by=UNSET, **kwargs):
+        queryset = apply(order_by, queryset)
+        return super().get_queryset(queryset, info, **kwargs)
