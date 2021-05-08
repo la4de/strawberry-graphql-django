@@ -201,12 +201,12 @@ def test_inherit_type():
     global Type
 
     @strawberry_django.type(FieldTypesModel)
-    class Parent:
+    class Base:
         char: auto
         one_to_one: 'Type'
 
     @strawberry_django.type(FieldTypesModel)
-    class Type(Parent):
+    class Type(Base):
         many_to_many: List['Type']
 
     assert [(f.name, f.type or f.child.type) for f in fields(Type)] == [
@@ -236,6 +236,28 @@ def test_inherit_input():
         ('many_to_many', strawberry_django.ManyToManyInput),
         ('id', strawberry.ID),
         ('my_data', str),
+    ]
+
+
+def test_inherit_partial_input():
+    global Type
+
+    @strawberry_django.type(FieldTypesModel)
+    class Type:
+        char: auto
+        one_to_one: 'Type'
+
+    @strawberry_django.input(FieldTypesModel)
+    class Input(Type):
+        pass
+
+    @strawberry_django.input(FieldTypesModel, partial=True)
+    class PartialInput(Input):
+        pass
+
+    assert [(f.name, f.type or f.child.type, f.is_optional) for f in fields(PartialInput)] == [
+        ('char', str, True),
+        ('one_to_one', strawberry_django.OneToOneInput, True),
     ]
 
 

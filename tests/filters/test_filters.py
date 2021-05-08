@@ -17,9 +17,9 @@ class FruitFilter:
     id: auto
     name: auto
     color: ColorFilter
+    search: str
 
-    @strawberry_django.filters.field
-    def search(self, queryset) -> str:
+    def filter_search(self, queryset):
         return queryset.filter(name__icontains=self.search)
 
 @strawberry_django.filters.filter(models.Fruit)

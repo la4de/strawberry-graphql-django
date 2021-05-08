@@ -1,5 +1,5 @@
 import pytest
-from .. import models
+from tests import models
 
 
 def test_create(mutation):

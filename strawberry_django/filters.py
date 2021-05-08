@@ -50,23 +50,6 @@ lookup_name_conversion_map = {
     'i_regex': 'iregex',
 }
 
-class StrawberryDjangoFilterField(StrawberryField):
-    def __call__(self, filter_):
-        self._filter = filter_
-        self.type = filter_.__annotations__['return']
-        return self
-
-
-def field(filter=None, *, name=None, **kwargs):
-    field_ = StrawberryDjangoFilterField(
-        python_name=None,
-        graphql_name=name,
-        type_=None,
-        **kwargs)
-    if filter:
-        return field_(filter)
-    return field_
-
 
 def filter(model, *, name=None, lookups=False):
     try:
@@ -96,7 +79,7 @@ def filter_deprecated(model, *, name=None, lookups=False):
 def build_filter_kwargs(filters):
     filter_kwargs = {}
     filter_methods = []
-    django_model = getattr(filters, '_django_model', None)
+    django_model = utils.get_django_model(filters)
     for field in utils.fields(filters):
         field_name = field.name
         field_value = getattr(filters, field_name)
@@ -104,9 +87,9 @@ def build_filter_kwargs(filters):
         if is_unset(field_value):
             continue
 
-        filter_method = getattr(field, '_filter', None)
+        filter_method = getattr(filters, f'filter_{field_name}', None)
         if filter_method:
-            filter_methods.append((filter_method, filters))
+            filter_methods.append(filter_method)
             continue
 
         if django_model:
@@ -123,6 +106,7 @@ def build_filter_kwargs(filters):
             filter_methods.extend(subfield_filter_methods)
         else:
             filter_kwargs[field_name] = field_value
+
     return filter_kwargs, filter_methods
 
 
@@ -144,8 +128,8 @@ def apply(filters, queryset, pk=UNSET):
 
     filter_kwargs, filter_methods = build_filter_kwargs(filters)
     queryset = queryset.filter(**filter_kwargs)
-    for filter_method, filter_arg in filter_methods:
-        queryset = filter_method(self=filter_arg, queryset=queryset)
+    for filter_method in filter_methods:
+        queryset = filter_method(queryset=queryset)
     return queryset
 
 

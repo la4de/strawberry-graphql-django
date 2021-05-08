@@ -1,7 +1,6 @@
 import dataclasses
 import strawberry
 import strawberry_django
-from strawberry_django.utils import type_fields
 
 def generate_query(query=None, mutation=None):
     append_mutation = mutation and not query

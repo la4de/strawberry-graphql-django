@@ -3,123 +3,129 @@ import django
 import strawberry
 from django.db import models
 from strawberry.arguments import UNSET, is_unset
-from typing import Optional
+from typing import Any, Optional
 
-from .fields.field import StrawberryField, StrawberryDjangoField
+from .fields.field import StrawberryDjangoField
 from .fields.types import (
-    auto, is_auto, is_optional,
+    is_optional,
     get_model_field, resolve_model_field_type, resolve_model_field_name,
 )
-from .fields.utils import iter_class_fields
 from . import utils
 
 _type = type
 
+def get_type_attr(type_, field_name):
+    attr = getattr(type_, field_name, UNSET)
+    if utils.is_unset(attr):
+        attr = getattr(type_, '__dataclass_fields__', {}).get(field_name, UNSET)
+    return attr
 
-def resolve_django_name(model, field_name, field_value, is_input, is_filter):
-    django_name = getattr(field_value, 'django_name', field_name)
+def get_field(django_type, field_name, field_annotation=None):
+    attr = get_type_attr(django_type.origin, field_name)
+
+    if utils.is_field(attr):
+        field = StrawberryDjangoField.from_field(attr, django_type)
+    else:
+        field = StrawberryDjangoField(
+            default_value=attr,
+            type_=field_annotation,
+        )
+
+    field.python_name = field_name
+    if field_name in django_type.origin.__dict__.get('__annotations__', {}):
+        field.origin_django_type = django_type
+    if field_annotation:
+        field.type = field_annotation
+        field.is_auto = utils.is_auto(field_annotation)
+
     try:
-        model_field = get_model_field(model, django_name)
-        django_name = resolve_model_field_name(model_field, is_input, is_filter)
+        django_name = field.django_name or field_name
+        model_field = get_model_field(django_type.model, django_name)
+        field.django_name = resolve_model_field_name(model_field, django_type.is_input, django_type.is_filter)
+        field.is_relation = model_field.is_relation
     except django.core.exceptions.FieldDoesNotExist:
-        pass
-    return django_name
+        if field.django_name or field.is_auto:
+            raise # django_name defined, but field does not exist
+        model_field = None
+
+    if field.is_relation:
+        if not utils.is_similar_django_type(django_type, field.origin_django_type):
+            field.is_auto = True
+
+    if field.is_auto:
+        field.type = resolve_model_field_type(model_field, django_type)
+
+    if is_optional(model_field, django_type.is_input, django_type.is_partial):
+        field.type = Optional[field.type]
+    
+    if django_type.is_input:
+        if field.default is dataclasses.MISSING:
+            #TODO: could strawberry support UNSET?
+            field.default = UNSET
+            field.default_value = UNSET
+
+    return field
 
 
-def is_field_type_inherited_from_different_object_type(cls, field_name, is_input, is_filter):
-    if field_name in cls.__dict__.get('__annotations__', {}):
-        return False
-    # TODO: optimize and simplify
-    for c in reversed(cls.__mro__):
-        if field_name not in c.__dict__.get('__annotations__', {}):
+def get_fields(django_type):
+    annotations = utils.get_annotations(django_type.origin)
+    fields = {}
+
+    # collect all annotated fields
+    for field_name, field_annotation in annotations.items():
+        field = get_field(django_type, field_name, field_annotation)
+        fields[field_name] = field
+
+    # collect non-annotated strawberry fields
+    for field_name in dir(django_type.origin):
+        if field_name in fields:
             continue
-        if not utils.is_strawberry_type(c):
-            return False
-        if c._type_definition.is_input != is_input:
-            return True
-        if c._is_filter != is_filter:
-            return True
-        return False
-    return False
+        attr = getattr(django_type.origin, field_name)
+        if not utils.is_strawberry_field(attr):
+            continue
+        field = get_field(django_type, field_name)
+        fields[field_name] = field
+
+    return list(fields.values())
 
 
-def resolve_field_type(cls, model, field_name, django_name, field_type, is_input, partial, is_filter):
-    model_field = None
 
-    try:
-        model_field = get_model_field(model, django_name)
-    except django.core.exceptions.FieldDoesNotExist:
-        if is_auto(field_type):
-            raise
-
-    is_relation = getattr(model_field, 'is_relation', False)
-
-    if is_relation:
-        if is_field_type_inherited_from_different_object_type(cls, field_name, is_input, is_filter):
-            field_type = auto
-        if is_filter and is_auto(field_type):
-            from . import filters
-            field_type = filters.DjangoModelFilterInput
-
-    if is_auto(field_type):
-        field_type = resolve_model_field_type(model_field, is_input)
-
-    if is_filter == 'lookups':
-        if model_field and not model_field.is_relation:
-            from . import filters
-            if field_type not in (bool, filters.DjangoModelFilterInput):
-                field_type = filters.FilterLookup[field_type]
-
-    if is_optional(model_field, is_input, partial):
-        field_type = Optional[field_type]
-
-    return field_type
-
-
-def get_fields(cls, model, is_input, partial, is_filter):
-    fields = []
-    for field_name, field_type, field_value in iter_class_fields(cls):
-        django_name = resolve_django_name(model, field_name, field_value, is_input, is_filter)
-        field_type = resolve_field_type(cls, model, field_name, django_name, field_type, is_input, partial, is_filter)
-        if isinstance(field_value, StrawberryField):
-            field = field_value
-        else:
-            field = StrawberryDjangoField(
-                default_value=field_value,
-                django_name=django_name,
-                type_=field_type
-            )
-        if is_input:
-            if field.default is dataclasses.MISSING:
-                #TODO: could strawberry support UNSET?
-                field.default = UNSET
-                field.default_value = UNSET
-        field.origin_value = field_value
-        fields.append((field_name, field_type, field))
-    return fields
+@dataclasses.dataclass
+class StrawberryDjangoType:
+    origin: Any
+    model: Any
+    is_input: bool
+    is_partial: bool
+    is_filter: bool
+    #filters: DjangoFilter
+    #ordering: Union[List[str], DjangoOrdering]
+    #order_fields / sortable_by / order_by / order_by_fields
+    #manager
 
 def process_type(cls, model, **kwargs):
-    is_input = kwargs.get('is_input', False)
-    partial = kwargs.pop('partial', False)
-    is_filter = kwargs.pop('is_filter', False)
+    original_annotations = cls.__dict__.get('__annotations__', {})
 
-    fields = get_fields(cls, model, is_input, partial, is_filter)
+    django_type = StrawberryDjangoType(
+        origin=cls,
+        model=model,
+        is_input=kwargs.get('is_input', False),
+        is_partial=kwargs.pop('partial', False),
+        is_filter=kwargs.pop('is_filter', False),
+    )
 
-    # store original annotations for further use
-    annotations = cls.__dict__.get('__annotations__', {})
+    fields = get_fields(django_type)
 
     # update annotations and fields
-    cls.__annotations__ = {}
-    for field_name, field_type, field in fields:
-        cls.__annotations__[field_name] = field_type
-        setattr(cls, field_name, field)
+    cls.__annotations__ = cls_annotations = {}
+    for field in fields:
+        cls_annotations[field.name] = field.type
+        setattr(cls, field.name, field)
 
     strawberry.type(cls, **kwargs)
 
-    cls.__annotations__ = annotations
-    cls._django_model = model
-    cls._partial = partial
-    cls._is_filter = bool(is_filter)
+    # restore original annotations for further use
+    cls.__annotations__ = original_annotations
+    cls._django_type = django_type
 
     return cls
     
@@ -131,6 +137,7 @@ def type(model, **kwargs):
 
     def wrapper(cls):
         return process_type(cls, model, **kwargs)
+
     return wrapper
 
 

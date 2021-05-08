@@ -20,13 +20,11 @@ class DjangoMutation(StrawberryField):
 
     def post_init(self):
         type_ = self.type or self.child.type
-        if is_unset(self.input_type):
-            type_ = self.type or self.child.type
-            self.input_type = types.from_type(type_, is_input=True)
-        elif self.input_type:
-            assert type_._django_model == self.input_type._django_model, ('Input'
-                ' and output types should be generated from the same Django model')
-        self.django_model = type_._django_model
+        self.django_model = utils.get_django_model(type_)
+        if self.input_type:
+            assert self.django_model == utils.get_django_model(self.input_type), (
+                    'Input and output types should be generated'
+                    ' from the same Django model')
 
     @property
     def arguments(self):

@@ -5,6 +5,7 @@ from django.db.models import fields
 from django.db.models.fields.reverse_related import ForeignObjectRel, ManyToOneRel
 from strawberry.arguments import UNSET
 from typing import List, Optional
+from .. import filters
 
 class auto:
     pass
@@ -96,15 +97,21 @@ input_field_type_map = {
     fields.reverse_related.ManyToManyRel: ManyToManyInput,
 }
 
-def resolve_model_field_type(model_field, is_input):
+def resolve_model_field_type(model_field, django_type):
     model_field_type = type(model_field)
     field_type = None
-    if is_input:
+    if django_type.is_filter and model_field.is_relation:
+        field_type = filters.DjangoModelFilterInput
+    elif django_type.is_input:
         field_type = input_field_type_map.get(model_field_type, None)
     if field_type is None:
         field_type = field_type_map[model_field_type]
     if field_type is NotImplemented:
         raise NotImplementedError("GraphQL type for model field '{model_field}' has not been implemented")
+    if django_type.is_filter == 'lookups':
+        # TODO: could this be moved into filters.py
+        if not model_field.is_relation and field_type is not bool:
+            field_type = filters.FilterLookup[field_type]
     return field_type
 
 

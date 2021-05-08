@@ -1,5 +1,7 @@
+import dataclasses
 import strawberry
 from strawberry.arguments import is_unset, UNSET
+from strawberry.field import StrawberryField
 from django.db import models
 import asyncio
 import warnings
@@ -24,21 +26,50 @@ def deprecated(msg, stacklevel=1):
 def is_strawberry_type(obj):
     return hasattr(obj, '_type_definition')
 
+def is_strawberry_field(obj):
+    return isinstance(obj, StrawberryField)
+
+def is_strawberry_django_field(obj):
+    from strawberry_django.fields.field import StrawberryDjangoField
+    return isinstance(obj, StrawberryDjangoField)
+
 def is_django_type(obj):
-    return hasattr(obj, '_django_model')
+    return hasattr(obj, '_django_type')
 
 def is_django_model(obj):
     return isinstance(obj, models.base.ModelBase)
+
+def is_field(obj):
+    return isinstance(obj, dataclasses.Field)
 
 def is_django_field(obj):
     from .fields.field import DjangoField
     return isinstance(obj, DjangoField)
 
-def type_fields(type_):
-    return type_._type_definition.fields
+def fields(obj):
+    return obj._type_definition.fields
 
-def type_django_model(type_):
-    return getattr(type_, '_django_model', None)
+def is_auto(obj):
+    from .fields.types import is_auto
+    return is_auto(obj)
 
-def fields(cls):
-    return cls._type_definition.fields
+def get_django_model(type_):
+    if not is_django_type(type_):
+        return
+    return type_._django_type.model
+
+def is_similar_django_type(a, b):
+    if not a or not b:
+        return False
+    if a.is_input != b.is_input:
+        return False
+    if a.is_filter != b.is_filter:
+        return False
+    return True
+
+def get_annotations(cls):
+    annotations = {}
+    for c in reversed(cls.__mro__):
+        if '__annotations__' in c.__dict__:
+            annotations.update(c.__annotations__)
+    return annotations
